@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "LIB": {
+      "commandName": "Project",
+      "remoteDebugEnabled": false
+    }
+  }
+}

@@ -66,6 +66,34 @@
             </Setter>
         </Style>
         
+        <!-- Стиль для кнопок действий в списке -->
+        <Style x:Key="ActionButtonStyle" TargetType="Button">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Border" 
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="3">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#E0E0E0"/>
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#999999"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#D0D0D0"/>
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#888888"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
         <!-- Стиль для кнопки выхода -->
         <Style x:Key="ExitButtonStyle" TargetType="Button">
             <Setter Property="Template">
@@ -129,7 +157,16 @@
                            FontWeight="Bold" 
                            Margin="0,0,0,20"
                            HorizontalAlignment="Center"
-                           Foreground="{DynamicResource TextBrush}"/>
+                           Foreground="{DynamicResource TextBrush}"
+                           Cursor="Hand"
+                           MouseLeftButtonDown="LibraryTitle_MouseLeftButtonDown">
+                    <TextBlock.Effect>
+                        <DropShadowEffect Color="black" 
+                                        BlurRadius="2" 
+                                        ShadowDepth="1" 
+                                        Opacity="0.3"/>
+                    </TextBlock.Effect>
+                </TextBlock>
                 
                 <!-- Навигационные кнопки -->
                 <StackPanel Grid.Row="1">
@@ -257,12 +294,249 @@
             
             <!-- Основной контент -->
             <Grid Grid.Row="1" Margin="20">
-                <TextBlock Text="Добро пожаловать в библиотеку!"
-                           FontSize="24"
-                           FontWeight="Bold"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           Foreground="{DynamicResource TextBrush}"/>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                
+                <!-- Приветственная секция -->
+                <Border Grid.Row="0" 
+                        Background="{DynamicResource ButtonBackgroundBrush}" 
+                        BorderBrush="{DynamicResource ButtonBorderBrush}" 
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="25"
+                        Margin="0,0,0,20">
+                    <StackPanel>
+                        <TextBlock Text="Добро пожаловать в библиотеку!"
+                                   FontSize="28"
+                                   FontWeight="Bold"
+                                   HorizontalAlignment="Center"
+                                   Foreground="{DynamicResource TextBrush}"
+                                   Margin="0,0,0,10"/>
+                        <TextBlock Text="Управляйте книгами, авторами и читателями в удобном интерфейсе"
+                                   FontSize="16"
+                                   HorizontalAlignment="Center"
+                                   Foreground="{DynamicResource TextBrush}"
+                                   Opacity="0.8"/>
+                    </StackPanel>
+                </Border>
+                
+                <!-- Основная область контента -->
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <!-- Левая колонка - Список книг -->
+                    <Border Grid.Column="0" 
+                            Background="{DynamicResource ButtonBackgroundBrush}" 
+                            BorderBrush="{DynamicResource ButtonBorderBrush}" 
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="20"
+                            Margin="0,0,10,0">
+                        <StackPanel>
+                            <TextBlock Text="📚 Список книг"
+                                       FontSize="18"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextBrush}"
+                                       Margin="0,0,0,15"/>
+                            
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="300">
+                                <ListBox x:Name="BooksListBox"
+                                         Background="Transparent"
+                                         BorderThickness="0"
+                                         Foreground="{DynamicResource TextBrush}"
+                                         MouseDoubleClick="BooksListBox_MouseDoubleClick">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Margin="5">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                
+                                                <!-- Основная информация о книге -->
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="{Binding Title}" 
+                                                               FontWeight="Bold" 
+                                                               FontSize="14"/>
+                                                    <TextBlock Text="{Binding Author}" 
+                                                               FontSize="12" 
+                                                               Opacity="0.8"/>
+                                                    <TextBlock Text="{Binding FileName}" 
+                                                               FontSize="10" 
+                                                               Opacity="0.6"/>
+                                                </StackPanel>
+                                                
+                                                <!-- Кнопки действий (появляются при наведении) -->
+                                                <StackPanel Grid.Column="1" 
+                                                            Orientation="Horizontal" 
+                                                            Margin="10,0,0,0"
+                                                            Opacity="0"
+                                                            x:Name="ActionButtons">
+                                                    <Button Content="✏️" 
+                                                            Width="25" 
+                                                            Height="25" 
+                                                            Margin="2"
+                                                            Background="{DynamicResource ButtonBackgroundBrush}"
+                                                            BorderBrush="{DynamicResource ButtonBorderBrush}"
+                                                            Foreground="{DynamicResource TextBrush}"
+                                                            Click="EditBookTitle_Click"
+                                                            Tag="{Binding}"
+                                                            Style="{StaticResource ActionButtonStyle}"/>
+                                                    <Button Content="🗑️" 
+                                                            Width="25" 
+                                                            Height="25" 
+                                                            Margin="2"
+                                                            Background="{DynamicResource ButtonBackgroundBrush}"
+                                                            BorderBrush="{DynamicResource ButtonBorderBrush}"
+                                                            Foreground="{DynamicResource TextBrush}"
+                                                            Click="DeleteBookInline_Click"
+                                                            Tag="{Binding}"
+                                                            Style="{StaticResource ActionButtonStyle}"/>
+                                                </StackPanel>
+                                            </Grid>
+                                            
+                                            <!-- Триггеры для показа/скрытия кнопок -->
+                                            <DataTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Trigger.EnterActions>
+                                                        <BeginStoryboard>
+                                                            <Storyboard>
+                                                                <DoubleAnimation Storyboard.TargetName="ActionButtons"
+                                                                                Storyboard.TargetProperty="Opacity"
+                                                                                To="1" Duration="0:0:0.2"/>
+                                                            </Storyboard>
+                                                        </BeginStoryboard>
+                                                    </Trigger.EnterActions>
+                                                    <Trigger.ExitActions>
+                                                        <BeginStoryboard>
+                                                            <Storyboard>
+                                                                <DoubleAnimation Storyboard.TargetName="ActionButtons"
+                                                                                Storyboard.TargetProperty="Opacity"
+                                                                                To="0" Duration="0:0:0.2"/>
+                                                            </Storyboard>
+                                                        </BeginStoryboard>
+                                                    </Trigger.ExitActions>
+                                                </Trigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                    <ListBox.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="📖 Открыть файл" Click="OpenBookFile_Click"/>
+                                            <MenuItem Header="🗑️ Удалить книгу" Click="DeleteBook_Click"/>
+                                            <Separator/>
+                                            <MenuItem Header="ℹ️ Информация" Click="ShowBookInfo_Click"/>
+                                        </ContextMenu>
+                                    </ListBox.ContextMenu>
+                                </ListBox>
+                            </ScrollViewer>
+                            
+                            <TextBlock x:Name="NoBooksText"
+                                       Text="Книги ещё не добавлены"
+                                       FontSize="14"
+                                       Foreground="{DynamicResource TextBrush}"
+                                       Opacity="0.6"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Margin="0,20"/>
+                        </StackPanel>
+                    </Border>
+                    
+                    <!-- Правая колонка - Статистика -->
+                    <Border Grid.Column="1" 
+                            Background="{DynamicResource ButtonBackgroundBrush}" 
+                            BorderBrush="{DynamicResource ButtonBorderBrush}" 
+                            BorderThickness="1"
+                            CornerRadius="8"
+                            Padding="20"
+                            Margin="10,0,0,0">
+                        <StackPanel>
+                            <TextBlock Text="📊 Статистика библиотеки"
+                                       FontSize="18"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextBrush}"
+                                       Margin="0,0,0,15"/>
+                            
+                            <StackPanel x:Name="StatisticsPanel">
+                                <TextBlock x:Name="TotalBooksText"
+                                           Text="Всего книг: 0"
+                                           FontSize="14"
+                                           Foreground="{DynamicResource TextBrush}"
+                                           Margin="0,5"/>
+                                <TextBlock x:Name="LastAddedText"
+                                           Text="Последняя добавлена: -"
+                                           FontSize="14"
+                                           Foreground="{DynamicResource TextBrush}"
+                                           Margin="0,5"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+                
+                <!-- Нижняя панель - Быстрые действия -->
+                <Border Grid.Row="2" 
+                        Background="{DynamicResource ButtonBackgroundBrush}" 
+                        BorderBrush="{DynamicResource ButtonBorderBrush}" 
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="20"
+                        Margin="0,20,0,0">
+                    <StackPanel>
+                        <TextBlock Text="⚡ Быстрые действия"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextBrush}"
+                                   Margin="0,0,0,15"/>
+                        
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <Button x:Name="AddBookButton"
+                                    Content="➕ Добавить книгу"
+                                    Width="140"
+                                    Height="35"
+                                    Margin="5"
+                                    Background="{DynamicResource ButtonBackgroundBrush}"
+                                    BorderBrush="{DynamicResource ButtonBorderBrush}"
+                                    Foreground="{DynamicResource TextBrush}"
+                                    Click="AddBookButton_Click"
+                                    Style="{StaticResource RoundedButtonStyle}"/>
+                            
+                            <Button x:Name="ClearBooksButton"
+                                    Content="🗑️ Очистить список"
+                                    Width="140"
+                                    Height="35"
+                                    Margin="5"
+                                    Background="{DynamicResource ButtonBackgroundBrush}"
+                                    BorderBrush="{DynamicResource ButtonBorderBrush}"
+                                    Foreground="{DynamicResource TextBrush}"
+                                    Click="ClearBooksButton_Click"
+                                    Style="{StaticResource RoundedButtonStyle}"/>
+                            
+                            <Button Content="🔍 Поиск"
+                                    Width="120"
+                                    Height="35"
+                                    Margin="5"
+                                    Background="{DynamicResource ButtonBackgroundBrush}"
+                                    BorderBrush="{DynamicResource ButtonBorderBrush}"
+                                    Foreground="{DynamicResource TextBrush}"
+                                    Style="{StaticResource RoundedButtonStyle}"/>
+                            
+                            <Button Content="📋 Отчёт"
+                                    Width="120"
+                                    Height="35"
+                                    Margin="5"
+                                    Background="{DynamicResource ButtonBackgroundBrush}"
+                                    BorderBrush="{DynamicResource ButtonBorderBrush}"
+                                    Foreground="{DynamicResource TextBrush}"
+                                    Style="{StaticResource RoundedButtonStyle}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
             </Grid>
         </Grid>
     </Grid>
