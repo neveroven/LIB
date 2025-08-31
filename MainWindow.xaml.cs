@@ -16,6 +16,27 @@ using System.Text.Json;
 namespace LIB
 {
     /// <summary>
+    /// Класс для хранения прогресса чтения
+    /// </summary>
+    public class ReadingProgress
+    {
+        public string FilePath { get; set; }
+        public int CurrentPage { get; set; }
+        public double ProgressPercentage { get; set; }
+        public DateTime LastReadDate { get; set; }
+        public int TotalPages { get; set; }
+
+        public ReadingProgress(string filePath, int currentPage, double progressPercentage, int totalPages)
+        {
+            FilePath = filePath;
+            CurrentPage = currentPage;
+            ProgressPercentage = progressPercentage;
+            TotalPages = totalPages;
+            LastReadDate = DateTime.Now;
+        }
+    }
+
+    /// <summary>
     /// Класс для представления книги
     /// </summary>
     public class Book
@@ -25,6 +46,14 @@ namespace LIB
         public string FilePath { get; set; }
         public string FileName { get; set; }
         public DateTime AddedDate { get; set; }
+        public string CoverImageSource { get; set; } // Путь к обложке книги
+        
+        // Свойства для отображения прогресса (не сохраняются в JSON)
+        [System.Text.Json.Serialization.JsonIgnore]
+        public double ProgressWidth { get; set; } // Ширина прогресс-бара в пикселях
+        
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string ProgressText { get; set; } // Текст прогресса
 
         public Book(string title, string author, string filePath, string fileName)
         {
@@ -33,6 +62,9 @@ namespace LIB
             FilePath = filePath;
             FileName = fileName;
             AddedDate = DateTime.Now;
+            CoverImageSource = ""; // По умолчанию обложка не задана
+            ProgressWidth = 0;
+            ProgressText = "";
         }
 
         public override string ToString()
@@ -53,6 +85,16 @@ namespace LIB
         private bool isDarkTheme = true;
         private List<Book> books = new List<Book>();
         private readonly string booksFilePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "books.json");
+        private readonly string readingProgressFilePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "reading_progress.json");
+        private string currentXmlContent = ""; // Для хранения исходного XML
+        
+        // Система страниц
+        private List<string> bookPages = new List<string>();
+        private int currentPageIndex = 0;
+        private Book currentBook = null;
+        
+        // Прогресс чтения
+        private Dictionary<string, ReadingProgress> readingProgress = new Dictionary<string, ReadingProgress>();
 
         public MainWindow()
         {
@@ -72,8 +114,30 @@ namespace LIB
             // Загружаем книги из JSON файла
             LoadBooksFromJson();
             
+            // Загружаем прогресс чтения
+            LoadReadingProgress();
+            
             // Инициализируем отображение книг
             UpdateBooksDisplay();
+            
+            // Добавляем обработчик для кнопки чтения
+            ReadSelectedBookButton.Click += ReadSelectedBook_Click;
+            
+            // Добавляем обработчик для кнопки возврата
+            BackToLibraryButton.Click += BackToLibrary_Click;
+            
+            // Добавляем обработчик для кнопки XML
+            ShowXmlButton.Click += ShowXml_Click;
+            
+            // Добавляем обработчики для кнопок навигации
+            PreviousPageButton.Click += PreviousPage_Click;
+            NextPageButton.Click += NextPage_Click;
+            
+            // Добавляем обработчики клавиатуры для навигации по страницам
+            this.KeyDown += MainWindow_KeyDown;
+            
+            // Добавляем обработчик для кнопки возврата из грида
+            BackToWelcomeButton.Click += BackToWelcome_Click;
         }
 
         private void ThemeToggleButton_Click(object sender, RoutedEventArgs e)
@@ -126,7 +190,7 @@ namespace LIB
                 // Создаём диалог выбора файла
                 OpenFileDialog openFileDialog = new OpenFileDialog();
                 openFileDialog.Title = "Выберите книгу для добавления";
-                openFileDialog.Filter = "Все файлы (*.*)|*.*|Текстовые файлы (*.txt)|*.txt|PDF файлы (*.pdf)|*.pdf|Word документы (*.doc;*.docx)|*.doc;*.docx";
+                openFileDialog.Filter = "Все файлы (*.*)|*.*|Текстовые файлы (*.txt)|*.txt|FictionBook (*.fb2)|*.fb2|XML файлы (*.xml)|*.xml|RTF файлы (*.rtf)|*.rtf|Markdown (*.md)|*.md|PDF файлы (*.pdf)|*.pdf|Word документы (*.doc;*.docx)|*.doc;*.docx";
                 openFileDialog.FilterIndex = 1;
                 openFileDialog.Multiselect = false;
 
@@ -144,6 +208,14 @@ namespace LIB
 
                     // Создаём новую книгу и добавляем в список
                     Book newBook = new Book(title, author, filePath, fileName);
+                    
+                    // Ищем обложку в файле
+                    string coverPath = FindBookCover(filePath);
+                    if (!string.IsNullOrEmpty(coverPath))
+                    {
+                        newBook.CoverImageSource = coverPath;
+                    }
+                    
                     books.Add(newBook);
 
                     // Сохраняем книги в JSON файл
@@ -164,6 +236,9 @@ namespace LIB
             // Обновляем ListBox со списком книг
             BooksListBox.ItemsSource = null;
             BooksListBox.ItemsSource = books;
+            
+            // Обновляем грид книг
+            UpdateBooksGridDisplay();
 
             // Обновляем статистику
             TotalBooksText.Text = $"Всего книг: {books.Count}";
@@ -176,6 +251,13 @@ namespace LIB
                 // Показываем последнюю добавленную книгу
                 Book lastBook = books[books.Count - 1];
                 LastAddedText.Text = $"Последняя добавлена: {lastBook.Title}";
+                
+                // Показываем статистику прогресса чтения
+                int booksWithProgress = readingProgress.Count;
+                if (booksWithProgress > 0)
+                {
+                    TotalBooksText.Text += $" | Читается: {booksWithProgress}";
+                }
             }
             else
             {
@@ -209,6 +291,57 @@ namespace LIB
         }
 
         /// <summary>
+        /// Загружает прогресс чтения из JSON файла
+        /// </summary>
+        private void LoadReadingProgress()
+        {
+            try
+            {
+                if (File.Exists(readingProgressFilePath))
+                {
+                    string jsonContent = File.ReadAllText(readingProgressFilePath);
+                    if (!string.IsNullOrWhiteSpace(jsonContent))
+                    {
+                        var progressList = JsonSerializer.Deserialize<List<ReadingProgress>>(jsonContent) ?? new List<ReadingProgress>();
+                        readingProgress.Clear();
+                        
+                        foreach (var progress in progressList)
+                        {
+                            readingProgress[progress.FilePath] = progress;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Тихо обрабатываем ошибку, создаем пустой словарь
+                readingProgress = new Dictionary<string, ReadingProgress>();
+            }
+        }
+        
+        /// <summary>
+        /// Сохраняет прогресс чтения в JSON файл
+        /// </summary>
+        private void SaveReadingProgress()
+        {
+            try
+            {
+                var options = new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                };
+                
+                string jsonContent = JsonSerializer.Serialize(readingProgress.Values.ToList(), options);
+                File.WriteAllText(readingProgressFilePath, jsonContent);
+            }
+            catch (Exception ex)
+            {
+                // Тихо обрабатываем ошибку
+            }
+        }
+        
+        /// <summary>
         /// Сохраняет книги в JSON файл
         /// </summary>
         private void SaveBooksToJson()
@@ -241,13 +374,13 @@ namespace LIB
         }
 
         /// <summary>
-        /// Двойной клик по книге - открывает файл
+        /// Двойной клик по книге - открывает панель чтения
         /// </summary>
         private void BooksListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
             if (BooksListBox.SelectedItem is Book selectedBook)
             {
-                OpenBookFile(selectedBook);
+                ShowReadingPanel(selectedBook);
             }
         }
 
@@ -454,5 +587,1480 @@ namespace LIB
                 UpdateBooksDisplay();
             }
         }
+        
+        /// <summary>
+        /// Открывает панель чтения для выбранной книги
+        /// </summary>
+        private void ReadBook_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuItem menuItem && menuItem.Parent is ContextMenu contextMenu)
+            {
+                if (contextMenu.PlacementTarget is ListBox listBox && listBox.SelectedItem is Book book)
+                {
+                    ShowReadingPanel(book);
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Открывает панель чтения для книги (кнопка в списке)
+        /// </summary>
+        private void ReadBookInline_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.Tag is Book book)
+            {
+                ShowReadingPanel(book);
+            }
+        }
+        
+
+        
+        /// <summary>
+        /// Читает выбранную книгу (кнопка в панели быстрых действий)
+        /// </summary>
+        private void ReadSelectedBook_Click(object sender, RoutedEventArgs e)
+        {
+            if (BooksListBox.SelectedItem is Book selectedBook)
+            {
+                ShowReadingPanel(selectedBook);
+            }
+            else
+            {
+                MessageBox.Show("Пожалуйста, выберите книгу для чтения", 
+                              "Книга не выбрана", 
+                              MessageBoxButton.OK, 
+                              MessageBoxImage.Information);
+            }
+        }
+        
+        /// <summary>
+        /// Показывает панель чтения для выбранной книги
+        /// </summary>
+        private void ShowReadingPanel(Book book)
+        {
+            // Скрываем все панели
+            WelcomePanel.Visibility = Visibility.Collapsed;
+            BooksGridPanel.Visibility = Visibility.Collapsed;
+            
+            // Показываем панель чтения
+            ReadingPanel.Visibility = Visibility.Visible;
+            
+            // Показываем кнопку возврата
+            BackToLibraryButton.Visibility = Visibility.Visible;
+            
+            // Сохраняем текущую книгу
+            currentBook = book;
+            
+            // Устанавливаем информацию о книге
+            ReadingBookTitle.Text = book.Title;
+            ReadingBookAuthor.Text = book.Author;
+            
+            // Показываем содержимое книги
+            ShowBookContentPlaceholder(book);
+            
+            // Загружаем сохраненный прогресс чтения
+            LoadBookProgress(book);
+            
+            // Обновляем статус
+            StatusText.Text = "Книга загружена";
+            ProgressText.Text = "Прогресс чтения: 0%";
+            PageText.Text = "Страница 1 из 1";
+            ReadingProgressBar.Value = 0;
+            
+            // Инициализируем систему страниц
+            // Обработчик прокрутки больше не нужен, так как используем страницы
+        }
+        
+        /// <summary>
+        /// Показывает содержимое книги с разбивкой на страницы
+        /// </summary>
+        private void ShowBookContentPlaceholder(Book book)
+        {
+            try
+            {
+                // Пытаемся прочитать содержимое файла
+                string content = ReadBookContent(book.FilePath);
+                if (!string.IsNullOrEmpty(content))
+                {
+                    // Создаём страницы из содержимого
+                    CreateBookPages(content);
+                    
+                    StatusText.Text = "Книга успешно загружена. Используйте стрелки ← → для навигации";
+                    
+                    // Прогресс будет загружен в LoadBookProgress
+                }
+                else
+                {
+                    ShowErrorContent(book);
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowErrorContent(book, ex.Message);
+            }
+        }
+        
+        /// <summary>
+        /// Читает содержимое файла книги
+        /// </summary>
+        private string ReadBookContent(string filePath)
+        {
+            if (!File.Exists(filePath))
+            {
+                throw new FileNotFoundException("Файл не найден");
+            }
+            
+            string extension = System.IO.Path.GetExtension(filePath).ToLower();
+            
+            switch (extension)
+            {
+                case ".txt":
+                    return ReadTextFile(filePath);
+                case ".md":
+                    return ReadTextFile(filePath);
+                case ".rtf":
+                    return ReadRtfFile(filePath);
+                case ".fb2":
+                    return ReadFictionBookFile(filePath);
+                case ".xml":
+                    return ReadXmlFile(filePath);
+                case ".pdf":
+                    return ReadPdfFile(filePath);
+                case ".doc":
+                case ".docx":
+                    return ReadWordFile(filePath);
+                default:
+                    return ReadTextFile(filePath); // Пробуем как текстовый
+            }
+        }
+        
+        /// <summary>
+        /// Читает текстовый файл
+        /// </summary>
+        private string ReadTextFile(string filePath)
+        {
+            try
+            {
+                // Пробуем разные кодировки
+                string[] encodings = { "UTF-8", "Windows-1251", "UTF-16", "ASCII" };
+                
+                foreach (string encodingName in encodings)
+                {
+                    try
+                    {
+                        Encoding encoding = Encoding.GetEncoding(encodingName);
+                        string content = File.ReadAllText(filePath, encoding);
+                        
+                        // Проверяем, что файл действительно текстовый
+                        if (IsTextContent(content))
+                        {
+                            return FormatTextContent(content);
+                        }
+                    }
+                    catch
+                    {
+                        continue;
+                    }
+                }
+                
+                // Если не удалось прочитать как текст, возвращаем null
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+        
+        /// <summary>
+        /// Читает RTF файл
+        /// </summary>
+        private string ReadRtfFile(string filePath)
+        {
+            try
+            {
+                // Простое чтение RTF как текста (убираем RTF разметку)
+                string rtfContent = File.ReadAllText(filePath, Encoding.UTF8);
+                return CleanRtfContent(rtfContent);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+        
+        /// <summary>
+        /// Читает PDF файл (базовая поддержка)
+        /// </summary>
+        private string ReadPdfFile(string filePath)
+        {
+            try
+            {
+                // Пока что возвращаем сообщение о том, что PDF не поддерживается
+                return "📄 PDF файлы пока не поддерживаются для чтения.\n\n" +
+                       "Пожалуйста, используйте текстовые файлы (.txt) или RTF файлы (.rtf).\n\n" +
+                       "В будущем будет добавлена полная поддержка PDF.";
+            }
+            catch
+            {
+                return null;
+            }
+        }
+        
+        /// <summary>
+        /// Читает Word файл (базовая поддержка)
+        /// </summary>
+        private string ReadWordFile(string filePath)
+        {
+            try
+            {
+                // Пока что возвращаем сообщение о том, что Word не поддерживается
+                return "📝 Word файлы пока не поддерживаются для чтения.\n\n" +
+                       "Пожалуйста, используйте текстовые файлы (.txt) или RTF файлы (.rtf).\n\n" +
+                       "В будущем будет добавлена полная поддержка Word.";
+            }
+            catch
+            {
+                return null;
+            }
+        }
+        
+        /// <summary>
+        /// Читает FictionBook (.fb2) файл
+        /// </summary>
+        private string ReadFictionBookFile(string filePath)
+        {
+            try
+            {
+                // Читаем XML содержимое
+                string xmlContent = File.ReadAllText(filePath, Encoding.UTF8);
+                currentXmlContent = xmlContent; // Сохраняем для отладки
+                return ParseFictionBookXml(xmlContent);
+            }
+            catch (Exception ex)
+            {
+                return $"❌ Ошибка при чтении FictionBook файла: {ex.Message}\n\n" +
+                       "Попробуйте проверить целостность файла.";
+            }
+        }
+        
+        /// <summary>
+        /// Читает XML файл
+        /// </summary>
+        private string ReadXmlFile(string filePath)
+        {
+            try
+            {
+                // Читаем XML содержимое
+                string xmlContent = File.ReadAllText(filePath, Encoding.UTF8);
+                currentXmlContent = xmlContent; // Сохраняем для отладки
+                
+                // Проверяем, является ли это FictionBook
+                if (xmlContent.Contains("<FictionBook") || xmlContent.Contains("fictionbook"))
+                {
+                    return ParseFictionBookXml(xmlContent);
+                }
+                else
+                {
+                    return ParseGenericXml(xmlContent);
+                }
+            }
+            catch (Exception ex)
+            {
+                return $"❌ Ошибка при чтении XML файла: {ex.Message}\n\n" +
+                       "Попробуйте проверить целостность файла.";
+            }
+        }
+        
+        /// <summary>
+        /// Парсит FictionBook XML и форматирует для чтения
+        /// </summary>
+        private string ParseFictionBookXml(string xmlContent)
+        {
+            try
+            {
+                // Создаём XML документ
+                var xmlDoc = new System.Xml.XmlDocument();
+                xmlDoc.LoadXml(xmlContent);
+                
+                // Извлекаем метаданные (пробуем разные способы)
+                string title = ExtractXmlValue(xmlDoc, "//title-info/book-title") ?? 
+                              ExtractXmlValue(xmlDoc, "//book-title") ??
+                              ExtractXmlValue(xmlDoc, "book-title");
+                              
+                string authorFirstName = ExtractXmlValue(xmlDoc, "//title-info/author/first-name") ?? 
+                                       ExtractXmlValue(xmlDoc, "//author/first-name") ??
+                                       ExtractXmlValue(xmlDoc, "first-name");
+                                       
+                string authorLastName = ExtractXmlValue(xmlDoc, "//title-info/author/last-name") ?? 
+                                      ExtractXmlValue(xmlDoc, "//author/last-name") ??
+                                      ExtractXmlValue(xmlDoc, "last-name");
+                                      
+                string genre = ExtractXmlValue(xmlDoc, "//title-info/genre") ?? 
+                              ExtractXmlValue(xmlDoc, "//genre") ??
+                              ExtractXmlValue(xmlDoc, "genre");
+                              
+                string annotation = ExtractXmlValue(xmlDoc, "//title-info/annotation") ?? 
+                                   ExtractXmlValue(xmlDoc, "//annotation") ??
+                                   ExtractXmlValue(xmlDoc, "annotation");
+                                   
+                string language = ExtractXmlValue(xmlDoc, "//lang") ?? 
+                                 ExtractXmlValue(xmlDoc, "lang");
+                                 
+                string date = ExtractXmlValue(xmlDoc, "//date") ?? 
+                             ExtractXmlValue(xmlDoc, "date");
+                
+                // Формируем заголовок
+                string result = $"📚 {title}\n\n";
+                
+                // Автор
+                if (!string.IsNullOrEmpty(authorFirstName) || !string.IsNullOrEmpty(authorLastName))
+                {
+                    string author = $"{authorFirstName} {authorLastName}".Trim();
+                    if (!string.IsNullOrEmpty(author))
+                    {
+                        result += $"✍️ Автор: {author}\n";
+                    }
+                }
+                
+                // Жанр
+                if (!string.IsNullOrEmpty(genre))
+                {
+                    result += $"🏷️ Жанр: {genre}\n";
+                }
+                
+                // Язык
+                if (!string.IsNullOrEmpty(language))
+                {
+                    result += $"🌐 Язык: {language}\n";
+                }
+                
+                // Дата
+                if (!string.IsNullOrEmpty(date))
+                {
+                    result += $"📅 Дата: {date}\n";
+                }
+                
+                result += "\n";
+                
+                // Аннотация
+                if (!string.IsNullOrEmpty(annotation))
+                {
+                    result += $"📖 АННОТАЦИЯ:\n{FormatAnnotation(annotation)}\n\n";
+                }
+                
+                // Извлекаем основной текст (пробуем разные способы)
+                var bodyNodes = xmlDoc.SelectNodes("//body") ?? 
+                               xmlDoc.SelectNodes("body") ??
+                               xmlDoc.GetElementsByTagName("body");
+                               
+                if (bodyNodes != null && bodyNodes.Count > 0)
+                {
+                    result += "📖 СОДЕРЖАНИЕ:\n\n";
+                    
+                    foreach (System.Xml.XmlNode bodyNode in bodyNodes)
+                    {
+                        result += ParseBodyContent(bodyNode);
+                    }
+                }
+                else
+                {
+                    // Попробуем найти текст другими способами
+                    result += "📖 СОДЕРЖАНИЕ:\n\n";
+                    
+                    // Ищем все параграфы
+                    var paragraphs = xmlDoc.SelectNodes("//p") ?? xmlDoc.GetElementsByTagName("p");
+                    if (paragraphs != null && paragraphs.Count > 0)
+                    {
+                        foreach (System.Xml.XmlNode pNode in paragraphs)
+                        {
+                            string text = pNode.InnerText?.Trim();
+                            if (!string.IsNullOrEmpty(text))
+                            {
+                                result += $"{text}\n\n";
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Ищем любой текстовый контент
+                        var textNodes = xmlDoc.SelectNodes("//text()");
+                        if (textNodes != null && textNodes.Count > 0)
+                        {
+                            foreach (System.Xml.XmlNode textNode in textNodes)
+                            {
+                                string text = textNode.Value?.Trim();
+                                if (!string.IsNullOrEmpty(text) && text.Length > 10)
+                                {
+                                    result += $"{text}\n\n";
+                                }
+                            }
+                        }
+                        else
+                        {
+                            result += "Основной текст не найден в файле.\n" +
+                                      "Возможно, файл повреждён или имеет нестандартную структуру.\n\n" +
+                                      "Попробуйте открыть файл в текстовом редакторе для проверки.\n\n" +
+                                      "📋 СТРУКТУРА XML:\n" +
+                                      "Для диагностики показана структура файла:\n\n" +
+                                      FormatXmlStructure(xmlDoc.DocumentElement, 0);
+                        }
+                    }
+                }
+                
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return $"❌ Ошибка при парсинге FictionBook XML: {ex.Message}\n\n" +
+                       "Файл может быть повреждён или иметь нестандартную структуру.\n\n" +
+                       "Попробуйте:\n" +
+                       "• Проверить целостность файла\n" +
+                       "• Открыть в текстовом редакторе\n" +
+                       "• Использовать другой .fb2 файл";
+            }
+        }
+        
+        /// <summary>
+        /// Парсит обычный XML файл
+        /// </summary>
+        private string ParseGenericXml(string xmlContent)
+        {
+            try
+            {
+                // Создаём XML документ
+                var xmlDoc = new System.Xml.XmlDocument();
+                xmlDoc.LoadXml(xmlContent);
+                
+                string result = "📄 XML ФАЙЛ\n\n";
+                
+                // Извлекаем корневой элемент
+                string rootElement = xmlDoc.DocumentElement?.Name ?? "Неизвестно";
+                result += $"🏷️ Тип: {rootElement}\n\n";
+                
+                // Показываем структуру XML
+                result += "📋 СТРУКТУРА XML:\n\n";
+                result += FormatXmlStructure(xmlDoc.DocumentElement, 0);
+                
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return $"❌ Ошибка при парсинге XML: {ex.Message}\n\n" +
+                       "Файл может быть повреждён или иметь нестандартную структуру.";
+            }
+        }
+        
+        /// <summary>
+        /// Извлекает значение из XML по XPath
+        /// </summary>
+        private string ExtractXmlValue(System.Xml.XmlDocument xmlDoc, string xpath)
+        {
+            try
+            {
+                // Пробуем XPath
+                var node = xmlDoc.SelectSingleNode(xpath);
+                if (node != null)
+                {
+                    return node.InnerText?.Trim() ?? "";
+                }
+                
+                // Если XPath не сработал, пробуем найти по имени тега
+                if (!xpath.StartsWith("//"))
+                {
+                    var nodes = xmlDoc.GetElementsByTagName(xpath);
+                    if (nodes.Count > 0)
+                    {
+                        return nodes[0].InnerText?.Trim() ?? "";
+                    }
+                }
+                
+                return "";
+            }
+            catch
+            {
+                return "";
+            }
+        }
+        
+        /// <summary>
+        /// Форматирует аннотацию для чтения
+        /// </summary>
+        private string FormatAnnotation(string annotation)
+        {
+            if (string.IsNullOrEmpty(annotation))
+                return "";
+            
+            // Убираем лишние пробелы и переносы строк
+            annotation = annotation.Replace("\r\n", "\n").Replace("\r", "\n");
+            annotation = System.Text.RegularExpressions.Regex.Replace(annotation, @"\s+", " ");
+            
+            // Разбиваем на параграфы
+            var paragraphs = annotation.Split(new[] { "<p>", "</p>" }, StringSplitOptions.RemoveEmptyEntries);
+            var result = new List<string>();
+            
+            foreach (var paragraph in paragraphs)
+            {
+                var cleanParagraph = paragraph.Trim();
+                if (!string.IsNullOrEmpty(cleanParagraph))
+                {
+                    result.Add(cleanParagraph);
+                }
+            }
+            
+            return string.Join("\n\n", result);
+        }
+        
+        /// <summary>
+        /// Парсит содержимое body элемента FictionBook
+        /// </summary>
+        private string ParseBodyContent(System.Xml.XmlNode bodyNode)
+        {
+            string result = "";
+            
+            // Обрабатываем все дочерние элементы
+            foreach (System.Xml.XmlNode childNode in bodyNode.ChildNodes)
+            {
+                switch (childNode.Name.ToLower())
+                {
+                    case "title":
+                        result += $"\n📖 {childNode.InnerText.Trim()}\n\n";
+                        break;
+                    case "epigraph":
+                        result += $"💭 ЭПИГРАФ:\n{childNode.InnerText.Trim()}\n\n";
+                        break;
+                    case "section":
+                        result += ParseSection(childNode);
+                        break;
+                    case "p":
+                        result += $"{childNode.InnerText.Trim()}\n\n";
+                        break;
+                    default:
+                        if (!string.IsNullOrEmpty(childNode.InnerText?.Trim()))
+                        {
+                            result += $"{childNode.InnerText.Trim()}\n\n";
+                        }
+                        break;
+                }
+            }
+            
+            return result;
+        }
+        
+        /// <summary>
+        /// Парсит section элемент FictionBook
+        /// </summary>
+        private string ParseSection(System.Xml.XmlNode sectionNode)
+        {
+            string result = "";
+            
+            // Заголовок секции
+            var titleNode = sectionNode.SelectSingleNode("title");
+            if (titleNode != null)
+            {
+                result += $"📖 {titleNode.InnerText.Trim()}\n\n";
+            }
+            
+            // Содержимое секции
+            foreach (System.Xml.XmlNode childNode in sectionNode.ChildNodes)
+            {
+                switch (childNode.Name.ToLower())
+                {
+                    case "title":
+                        // Уже обработали выше
+                        break;
+                    case "p":
+                        result += $"{childNode.InnerText.Trim()}\n\n";
+                        break;
+                    case "section":
+                        result += ParseSection(childNode);
+                        break;
+                    case "epigraph":
+                        result += $"💭 ЭПИГРАФ:\n{childNode.InnerText.Trim()}\n\n";
+                        break;
+                    default:
+                        if (!string.IsNullOrEmpty(childNode.InnerText?.Trim()))
+                        {
+                            result += $"{childNode.InnerText.Trim()}\n\n";
+                        }
+                        break;
+                }
+            }
+            
+            return result;
+        }
+        
+        /// <summary>
+        /// Форматирует структуру XML для отображения
+        /// </summary>
+        private string FormatXmlStructure(System.Xml.XmlNode node, int depth)
+        {
+            if (node == null) return "";
+            
+            string indent = new string(' ', depth * 2);
+            string result = $"{indent}• {node.Name}";
+            
+            // Показываем атрибуты
+            if (node.Attributes != null && node.Attributes.Count > 0)
+            {
+                var attributes = new List<string>();
+                foreach (System.Xml.XmlAttribute attr in node.Attributes)
+                {
+                    attributes.Add($"{attr.Name}=\"{attr.Value}\"");
+                }
+                result += $" [{string.Join(", ", attributes)}]";
+            }
+            
+            // Показываем значение, если это текстовый узел
+            if (!string.IsNullOrEmpty(node.InnerText?.Trim()) && node.ChildNodes.Count == 1 && node.FirstChild.NodeType == System.Xml.XmlNodeType.Text)
+            {
+                string text = node.InnerText.Trim();
+                if (text.Length > 50)
+                {
+                    text = text.Substring(0, 50) + "...";
+                }
+                result += $" = \"{text}\"";
+            }
+            
+            result += "\n";
+            
+            // Рекурсивно обрабатываем дочерние элементы
+            foreach (System.Xml.XmlNode childNode in node.ChildNodes)
+            {
+                if (childNode.NodeType == System.Xml.XmlNodeType.Element)
+                {
+                    result += FormatXmlStructure(childNode, depth + 1);
+                }
+            }
+            
+            return result;
+        }
+        
+        /// <summary>
+        /// Проверяет, является ли содержимое текстовым
+        /// </summary>
+        private bool IsTextContent(string content)
+        {
+            if (string.IsNullOrEmpty(content))
+                return false;
+            
+            // Проверяем первые 1000 символов на наличие текстового содержимого
+            string sample = content.Length > 1000 ? content.Substring(0, 1000) : content;
+            
+            // Считаем печатные символы
+            int printableChars = sample.Count(c => char.IsLetterOrDigit(c) || char.IsWhiteSpace(c) || char.IsPunctuation(c));
+            double ratio = (double)printableChars / sample.Length;
+            
+            return ratio > 0.7; // Если больше 70% символов - печатные, считаем текстом
+        }
+        
+        /// <summary>
+        /// Форматирует текстовое содержимое для чтения
+        /// </summary>
+        private string FormatTextContent(string content)
+        {
+            if (string.IsNullOrEmpty(content))
+                return content;
+            
+            // Убираем лишние пробелы и переносы строк
+            content = content.Replace("\r\n", "\n").Replace("\r", "\n");
+            
+            // Убираем множественные пробелы
+            while (content.Contains("  "))
+            {
+                content = content.Replace("  ", " ");
+            }
+            
+            // Убираем множественные переносы строк
+            while (content.Contains("\n\n\n"))
+            {
+                content = content.Replace("\n\n\n", "\n\n");
+            }
+            
+            // Ограничиваем длину (чтобы не перегружать интерфейс)
+            const int maxLength = 50000;
+            if (content.Length > maxLength)
+            {
+                content = content.Substring(0, maxLength) + "\n\n... [Файл обрезан для удобства чтения] ...";
+            }
+            
+            return content;
+        }
+        
+        /// <summary>
+        /// Очищает RTF содержимое от разметки
+        /// </summary>
+        private string CleanRtfContent(string rtfContent)
+        {
+            if (string.IsNullOrEmpty(rtfContent))
+                return rtfContent;
+            
+            // Простая очистка RTF разметки
+            string cleaned = rtfContent;
+            
+            // Убираем RTF заголовки
+            if (cleaned.StartsWith("{\\rtf"))
+            {
+                int startIndex = cleaned.IndexOf("\\viewkind");
+                if (startIndex > 0)
+                {
+                    cleaned = cleaned.Substring(startIndex);
+                }
+            }
+            
+            // Убираем основные RTF команды
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\\[a-z]+\d*", "");
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\{[^}]*\}", "");
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\\'[0-9a-fA-F]{2}", "");
+            
+            // Убираем лишние пробелы
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\s+", " ");
+            
+            return cleaned.Trim();
+        }
+        
+        /// <summary>
+        /// Показывает содержимое с ошибкой
+        /// </summary>
+        private void ShowErrorContent(Book book, string errorMessage = null)
+        {
+            string errorText = $"📚 {book.Title}\n\n" +
+                              $"✍️ Автор: {book.Author}\n" +
+                              $"📁 Файл: {book.FileName}\n" +
+                              $"📅 Дата добавления: {book.AddedDate:dd.MM.yyyy}\n\n";
+            
+            if (!string.IsNullOrEmpty(errorMessage))
+            {
+                errorText += $"❌ Ошибка при чтении файла:\n{errorMessage}\n\n";
+            }
+            else
+            {
+                errorText += $"❌ Не удалось прочитать содержимое файла.\n\n";
+            }
+            
+            errorText += $"🔧 Возможные причины:\n" +
+                        $"• Файл повреждён или недоступен\n" +
+                        $"• Неподдерживаемый формат файла\n" +
+                        $"• Недостаточно прав для чтения\n\n" +
+                        $"💡 Попробуйте:\n" +
+                        $"• Проверить, что файл существует\n" +
+                        $"• Использовать текстовые файлы (.txt)\n" +
+                        $"• Перезапустить приложение";
+            
+            BookContentText.Text = errorText;
+            StatusText.Text = "Ошибка при чтении файла";
+        }
+        
+        /// <summary>
+        /// Обновляет прогресс чтения
+        /// </summary>
+        private void UpdateReadingProgress(double percentage)
+        {
+            ReadingProgressBar.Value = percentage;
+            ProgressText.Text = $"Прогресс чтения: {percentage:F0}%";
+        }
+        
+        /// <summary>
+        /// Находит ScrollViewer для указанного элемента
+        /// </summary>
+        private ScrollViewer FindScrollViewer(DependencyObject element)
+        {
+            if (element == null) return null;
+            
+            // Проверяем текущий элемент
+            if (element is ScrollViewer scrollViewer)
+                return scrollViewer;
+            
+            // Рекурсивно ищем в родительских элементах
+            DependencyObject parent = VisualTreeHelper.GetParent(element);
+            return FindScrollViewer(parent);
+        }
+        
+        /// <summary>
+        /// Обработчик изменения прокрутки для отслеживания прогресса
+        /// </summary>
+        private void ScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
+        {
+            if (sender is ScrollViewer scrollViewer)
+            {
+                // Вычисляем прогресс чтения на основе позиции прокрутки
+                double progress = 0;
+                
+                if (scrollViewer.ExtentHeight > 0)
+                {
+                    progress = (scrollViewer.VerticalOffset / (scrollViewer.ExtentHeight - scrollViewer.ViewportHeight)) * 100;
+                    progress = Math.Max(0, Math.Min(100, progress)); // Ограничиваем от 0 до 100
+                }
+                
+                UpdateReadingProgress(progress);
+                StatusText.Text = $"Прогресс чтения: {progress:F0}%";
+            }
+        }
+        
+        /// <summary>
+        /// Возвращает к главной панели библиотеки
+        /// </summary>
+        private void BackToLibrary_Click(object sender, RoutedEventArgs e)
+        {
+            // Скрываем панель чтения
+            ReadingPanel.Visibility = Visibility.Collapsed;
+            
+            // Показываем приветственную панель
+            WelcomePanel.Visibility = Visibility.Visible;
+            
+            // Скрываем кнопку возврата
+            BackToLibraryButton.Visibility = Visibility.Collapsed;
+            
+            // Сбрасываем состояние страниц
+            bookPages.Clear();
+            currentPageIndex = 0;
+            currentBook = null;
+            currentXmlContent = "";
+        }
+        
+        /// <summary>
+        /// Увеличивает размер шрифта
+        /// </summary>
+        private void FontSizeUp_Click(object sender, RoutedEventArgs e)
+        {
+            double currentSize = BookContentText.FontSize;
+            if (currentSize < 32)
+            {
+                BookContentText.FontSize = currentSize + 2;
+                StatusText.Text = $"Размер шрифта: {BookContentText.FontSize}";
+            }
+        }
+        
+        /// <summary>
+        /// Уменьшает размер шрифта
+        /// </summary>
+        private void FontSizeDown_Click(object sender, RoutedEventArgs e)
+        {
+            double currentSize = BookContentText.FontSize;
+            if (currentSize > 12)
+            {
+                BookContentText.FontSize = currentSize - 2;
+                StatusText.Text = $"Размер шрифта: {BookContentText.FontSize}";
+            }
+        }
+        
+        /// <summary>
+        /// Обработчик нажатий клавиш для навигации по страницам
+        /// </summary>
+        private void MainWindow_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (ReadingPanel.Visibility == Visibility.Visible && bookPages.Count > 0)
+            {
+                switch (e.Key)
+                {
+                    case Key.Left:
+                    case Key.PageUp:
+                        GoToPreviousPage();
+                        e.Handled = true;
+                        break;
+                    case Key.Right:
+                    case Key.PageDown:
+                    case Key.Space:
+                        GoToNextPage();
+                        e.Handled = true;
+                        break;
+                    case Key.Home:
+                        GoToFirstPage();
+                        e.Handled = true;
+                        break;
+                    case Key.End:
+                        GoToLastPage();
+                        e.Handled = true;
+                        break;
+                }
+            }
+        }
+        
+                /// <summary>
+        /// Переход на предыдущую страницу
+        /// </summary>
+        private void GoToPreviousPage()
+        {
+            if (currentPageIndex > 0)
+            {
+                currentPageIndex--;
+                ShowCurrentPage();
+                UpdateReadingProgressFromPage();
+            }
+        }
+        
+        /// <summary>
+        /// Переход на следующую страницу
+        /// </summary>
+        private void GoToNextPage()
+        {
+            if (currentPageIndex < bookPages.Count - 1)
+            {
+                currentPageIndex++;
+                ShowCurrentPage();
+                UpdateReadingProgressFromPage();
+            }
+        }
+        
+        /// <summary>
+        /// Переход на первую страницу
+        /// </summary>
+        private void GoToFirstPage()
+        {
+            currentPageIndex = 0;
+            ShowCurrentPage();
+            UpdateReadingProgressFromPage();
+        }
+        
+        /// <summary>
+        /// Переход на последнюю страницу
+        /// </summary>
+        private void GoToLastPage()
+        {
+            currentPageIndex = bookPages.Count - 1;
+            ShowCurrentPage();
+            UpdateReadingProgressFromPage();
+        }
+        
+        /// <summary>
+        /// Показывает текущую страницу
+        /// </summary>
+        private void ShowCurrentPage()
+        {
+            if (bookPages.Count > 0 && currentPageIndex >= 0 && currentPageIndex < bookPages.Count)
+            {
+                BookContentText.Text = bookPages[currentPageIndex];
+                UpdatePageInfo();
+                UpdateReadingProgressFromPage();
+                
+                // Обновляем статус
+                StatusText.Text = $"Страница {currentPageIndex + 1} из {bookPages.Count}";
+            }
+        }
+        
+        /// <summary>
+        /// Обновляет информацию о текущей странице
+        /// </summary>
+        private void UpdatePageInfo()
+        {
+            if (bookPages.Count > 0)
+            {
+                PageText.Text = $"Страница {currentPageIndex + 1} из {bookPages.Count}";
+                
+                // Обновляем состояние кнопок навигации
+                PreviousPageButton.IsEnabled = currentPageIndex > 0;
+                NextPageButton.IsEnabled = currentPageIndex < bookPages.Count - 1;
+            }
+        }
+        
+        /// <summary>
+        /// Загружает сохраненный прогресс чтения для книги
+        /// </summary>
+        private void LoadBookProgress(Book book)
+        {
+            if (readingProgress.ContainsKey(book.FilePath))
+            {
+                var progress = readingProgress[book.FilePath];
+                
+                // Проверяем, что количество страниц совпадает
+                if (progress.TotalPages == bookPages.Count)
+                {
+                    currentPageIndex = Math.Min(progress.CurrentPage, bookPages.Count - 1);
+                    ShowCurrentPage();
+                    
+                    // Показываем уведомление о восстановлении прогресса
+                    StatusText.Text = $"Прогресс восстановлен: страница {currentPageIndex + 1} из {bookPages.Count}";
+                }
+                else
+                {
+                    // Если количество страниц изменилось, начинаем сначала
+                    currentPageIndex = 0;
+                    ShowCurrentPage();
+                    StatusText.Text = "Книга изменена, начинаем сначала";
+                }
+            }
+            else
+            {
+                // Если прогресс не найден, начинаем сначала
+                currentPageIndex = 0;
+                ShowCurrentPage();
+                StatusText.Text = "Начинаем чтение с начала";
+            }
+        }
+        
+        /// <summary>
+        /// Сохраняет текущий прогресс чтения
+        /// </summary>
+        private void SaveCurrentProgress()
+        {
+            if (currentBook != null && bookPages.Count > 0)
+            {
+                double percentage = ((double)(currentPageIndex + 1) / bookPages.Count) * 100;
+                var progress = new ReadingProgress(currentBook.FilePath, currentPageIndex, percentage, bookPages.Count);
+                readingProgress[currentBook.FilePath] = progress;
+                SaveReadingProgress();
+            }
+        }
+        
+        /// <summary>
+        /// Обновляет прогресс чтения на основе текущей страницы
+        /// </summary>
+        private void UpdateReadingProgressFromPage()
+        {
+            if (bookPages.Count > 0)
+            {
+                double percentage = ((double)(currentPageIndex + 1) / bookPages.Count) * 100;
+                UpdateReadingProgress(percentage);
+                
+                // Сохраняем прогресс при каждом изменении
+                SaveCurrentProgress();
+            }
+        }
+        
+        /// <summary>
+        /// Ищет обложку в FictionBook файле
+        /// </summary>
+        private string FindBookCover(string filePath)
+        {
+            try
+            {
+                if (System.IO.Path.GetExtension(filePath).ToLower() == ".fb2")
+                {
+                    string xmlContent = File.ReadAllText(filePath, Encoding.UTF8);
+                    var xmlDoc = new System.Xml.XmlDocument();
+                    xmlDoc.LoadXml(xmlContent);
+                    
+                    // Ищем тег binary с типом image
+                    var binaryNodes = xmlDoc.SelectNodes("//binary[@content-type='image/jpeg']") ?? 
+                                     xmlDoc.SelectNodes("//binary[@content-type='image/png']") ??
+                                     xmlDoc.SelectNodes("//binary[@content-type='image/gif']");
+                    
+                    if (binaryNodes != null && binaryNodes.Count > 0)
+                    {
+                        // Возвращаем путь к временному файлу с обложкой
+                        string tempDir = System.IO.Path.GetTempPath();
+                        string coverFileName = $"cover_{Guid.NewGuid()}.jpg";
+                        string coverPath = System.IO.Path.Combine(tempDir, coverFileName);
+                        
+                        // TODO: Декодировать base64 и сохранить изображение
+                        // Пока возвращаем заглушку
+                        return "";
+                    }
+                }
+                
+                return "";
+            }
+            catch
+            {
+                return "";
+            }
+        }
+        
+        /// <summary>
+        /// Создаёт страницы из содержимого книги
+        /// </summary>
+        private void CreateBookPages(string content)
+        {
+            bookPages.Clear();
+            
+            // Разбиваем содержимое на страницы
+            // Примерно 2000 символов на страницу для удобного чтения
+            const int charsPerPage = 2000;
+            
+            if (content.Length <= charsPerPage)
+            {
+                // Если содержимое помещается на одну страницу
+                bookPages.Add(content);
+            }
+            else
+            {
+                // Разбиваем на страницы
+                int startIndex = 0;
+                while (startIndex < content.Length)
+                {
+                    int endIndex = Math.Min(startIndex + charsPerPage, content.Length);
+                    
+                    // Ищем хорошее место для разрыва страницы (конец абзаца)
+                    if (endIndex < content.Length)
+                    {
+                        // Ищем ближайший конец строки или абзаца
+                        int breakIndex = content.LastIndexOf('\n', endIndex - 1, Math.Min(500, endIndex - startIndex));
+                        if (breakIndex > startIndex + charsPerPage / 2)
+                        {
+                            endIndex = breakIndex + 1;
+                        }
+                    }
+                    
+                    string pageContent = content.Substring(startIndex, endIndex - startIndex).Trim();
+                    if (!string.IsNullOrEmpty(pageContent))
+                    {
+                        bookPages.Add(pageContent);
+                    }
+                    
+                    startIndex = endIndex;
+                }
+            }
+            
+            // Обновляем информацию о страницах
+            if (bookPages.Count > 0)
+            {
+                PageText.Text = $"Страница 1 из {bookPages.Count}";
+            }
+        }
+        
+        /// <summary>
+        /// Показывает панель с гридом книг
+        /// </summary>
+        private void BooksButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Скрываем все панели
+            WelcomePanel.Visibility = Visibility.Collapsed;
+            ReadingPanel.Visibility = Visibility.Collapsed;
+            
+            // Показываем панель с гридом книг
+            BooksGridPanel.Visibility = Visibility.Visible;
+            
+            // Обновляем отображение книг в гриде
+            UpdateBooksGridDisplay();
+        }
+        
+        /// <summary>
+        /// Возврат к главной панели из грида книг
+        /// </summary>
+        private void BackToWelcome_Click(object sender, RoutedEventArgs e)
+        {
+            // Скрываем панель с гридом
+            BooksGridPanel.Visibility = Visibility.Collapsed;
+            
+            // Показываем главную панель
+            WelcomePanel.Visibility = Visibility.Visible;
+        }
+        
+        /// <summary>
+        /// Обновляет отображение книг в гриде
+        /// </summary>
+        private void UpdateBooksGridDisplay()
+        {
+            // Обновляем прогресс для каждой книги
+            UpdateBooksProgress();
+            
+            // Привязываем список книг к ItemsControl
+            BooksItemsControl.ItemsSource = null;
+            BooksItemsControl.ItemsSource = books;
+        }
+        
+        /// <summary>
+        /// Обновляет прогресс чтения для всех книг
+        /// </summary>
+        private void UpdateBooksProgress()
+        {
+            foreach (var book in books)
+            {
+                if (readingProgress.ContainsKey(book.FilePath))
+                {
+                    var progress = readingProgress[book.FilePath];
+                    book.ProgressWidth = (progress.ProgressPercentage / 100.0) * 180; // 180px - ширина прогресс-бара
+                    book.ProgressText = $"{progress.ProgressPercentage:F0}% ({progress.CurrentPage + 1}/{progress.TotalPages})";
+                }
+                else
+                {
+                    book.ProgressWidth = 0;
+                    book.ProgressText = "Не читалось";
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Чтение книги из грида
+        /// </summary>
+        private void ReadBookFromGrid_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.Tag is Book book)
+            {
+                ShowReadingPanel(book);
+            }
+        }
+        
+        /// <summary>
+        /// Редактирование книги из грида
+        /// </summary>
+        private void EditBookFromGrid_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.Tag is Book book)
+            {
+                // TODO: Реализовать редактирование книги
+                MessageBox.Show($"Редактирование книги: {book.Title}", "Редактирование", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        
+        /// <summary>
+        /// Удаление книги из грида
+        /// </summary>
+        private void DeleteBookFromGrid_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.Tag is Book book)
+            {
+                var result = MessageBox.Show($"Вы уверены, что хотите удалить книгу '{book.Title}'?", 
+                                           "Подтверждение удаления", 
+                                           MessageBoxButton.YesNo, 
+                                           MessageBoxImage.Question);
+                
+                if (result == MessageBoxResult.Yes)
+                {
+                    books.Remove(book);
+                    SaveBooksToJson();
+                    UpdateBooksDisplay();
+                    UpdateBooksGridDisplay();
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Сброс прогресса чтения из грида
+        /// </summary>
+        private void ResetProgressFromGrid_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.Tag is Book book)
+            {
+                var result = MessageBox.Show($"Вы уверены, что хотите сбросить прогресс чтения книги '{book.Title}'?", 
+                                           "Подтверждение сброса", 
+                                           MessageBoxButton.YesNo, 
+                                           MessageBoxImage.Question);
+                
+                if (result == MessageBoxResult.Yes)
+                {
+                    if (readingProgress.ContainsKey(book.FilePath))
+                    {
+                        readingProgress.Remove(book.FilePath);
+                        SaveReadingProgress();
+                        UpdateBooksGridDisplay();
+                        
+                        MessageBox.Show($"Прогресс чтения книги '{book.Title}' сброшен.", 
+                                      "Прогресс сброшен", 
+                                      MessageBoxButton.OK, 
+                                      MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        MessageBox.Show($"Для книги '{book.Title}' нет сохранённого прогресса.", 
+                                      "Нет прогресса", 
+                                      MessageBoxButton.OK, 
+                                      MessageBoxImage.Information);
+                    }
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Обработчик кнопки "Предыдущая страница"
+        /// </summary>
+        private void PreviousPage_Click(object sender, RoutedEventArgs e)
+        {
+            GoToPreviousPage();
+        }
+        
+        /// <summary>
+        /// Обработчик кнопки "Следующая страница"
+        /// </summary>
+        private void NextPage_Click(object sender, RoutedEventArgs e)
+        {
+            GoToNextPage();
+        }
+        
+        /// <summary>
+        /// Показывает исходный XML для отладки
+        /// </summary>
+        private void ShowXml_Click(object sender, RoutedEventArgs e)
+        {
+            if (!string.IsNullOrEmpty(currentXmlContent))
+            {
+                // Создаём окно для показа XML
+                var xmlWindow = new Window
+                {
+                    Title = "Исходный XML - Отладка",
+                    Width = 800,
+                    Height = 600,
+                    WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                    Owner = this,
+                    Background = this.Resources["WindowBackgroundBrush"] as SolidColorBrush
+                };
+
+                var textBox = new TextBox
+                {
+                    Text = currentXmlContent,
+                    FontFamily = new FontFamily("Consolas"),
+                    FontSize = 12,
+                    Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
+                    Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                    BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
+                    BorderThickness = new Thickness(1),
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    TextWrapping = TextWrapping.NoWrap,
+                    IsReadOnly = true
+                };
+
+                xmlWindow.Content = textBox;
+                xmlWindow.Show();
+                
+                StatusText.Text = "Открыто окно отладки XML";
+            }
+            else
+            {
+                MessageBox.Show("XML содержимое недоступно для отладки.", 
+                              "Отладка", 
+                              MessageBoxButton.OK, 
+                              MessageBoxImage.Information);
+            }
+        }
+        
+        /// <summary>
+        /// Сброс прогресса чтения для всех книг
+        /// </summary>
+        private void ResetAllProgress_Click(object sender, RoutedEventArgs e)
+        {
+            if (readingProgress.Count > 0)
+            {
+                var result = MessageBox.Show($"Вы уверены, что хотите сбросить прогресс чтения для всех книг ({readingProgress.Count} книг)?", 
+                                           "Подтверждение сброса", 
+                                           MessageBoxButton.YesNo, 
+                                           MessageBoxImage.Question);
+                
+                if (result == MessageBoxResult.Yes)
+                {
+                    readingProgress.Clear();
+                    SaveReadingProgress();
+                    UpdateBooksDisplay();
+                    UpdateBooksGridDisplay();
+                    
+                    MessageBox.Show($"Прогресс чтения для всех книг сброшен.", 
+                                  "Прогресс сброшен", 
+                                  MessageBoxButton.OK, 
+                                  MessageBoxImage.Information);
+                }
+            }
+            else
+            {
+                MessageBox.Show("Нет сохранённого прогресса чтения для сброса.", 
+                              "Нет прогресса", 
+                              MessageBoxButton.OK, 
+                              MessageBoxImage.Information);
+            }
+        }
+        
+        /// <summary>
+        /// Создаёт демонстрационный текстовый файл для тестирования чтения
+        /// </summary>
+        private void CreateDemoFile_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string demoContent = CreateDemoTextContent();
+                string fileName = "Демо-книга.txt";
+                string filePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
+                
+                // Создаём файл с кодировкой UTF-8
+                File.WriteAllText(filePath, demoContent, Encoding.UTF8);
+                
+                // Добавляем в библиотеку
+                Book demoBook = new Book("Демонстрационная книга", "Система", filePath, fileName);
+                books.Add(demoBook);
+                
+                // Сохраняем в JSON
+                SaveBooksToJson();
+                
+                // Обновляем отображение
+                UpdateBooksDisplay();
+                
+                MessageBox.Show($"Демонстрационный файл создан: {fileName}\n\n" +
+                              "Теперь вы можете выбрать эту книгу и протестировать функцию чтения!", 
+                              "Демо-файл создан", 
+                              MessageBoxButton.OK, 
+                              MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при создании демо-файла: {ex.Message}", 
+                              "Ошибка", 
+                              MessageBoxButton.OK, 
+                              MessageBoxImage.Error);
+            }
+        }
+        
+        /// <summary>
+        /// Создаёт демонстрационное содержимое для тестирования
+        /// </summary>
+        private string CreateDemoTextContent()
+        {
+            return @"ДЕМОНСТРАЦИОННАЯ КНИГА
+
+Автор: Система
+Создано: " + DateTime.Now.ToString("dd.MM.yyyy HH:mm") + @"
+
+ГЛАВА 1: ВВЕДЕНИЕ
+
+Это демонстрационный текстовый файл, созданный для тестирования функции чтения в приложении библиотеки. Файл содержит пример текста, который поможет вам оценить качество отображения и функциональность читателя.
+
+ГЛАВА 2: ОСОБЕННОСТИ ЧТЕНИЯ
+
+Приложение поддерживает следующие возможности:
+• Чтение текстовых файлов (.txt) с различными кодировками
+• Поддержка RTF файлов (.rtf) с очисткой разметки
+• Чтение FictionBook (.fb2) с полной стилизацией XML
+• Автоматическое определение FictionBook в XML файлах
+• Извлечение метаданных (автор, жанр, аннотация)
+• Парсинг структуры глав и секций
+• Автоматическое определение текстового содержимого
+• Форматирование текста для удобного чтения
+• Отслеживание прогресса чтения
+• Изменение размера шрифта
+
+ГЛАВА 3: ПОДДЕРЖИВАЕМЫЕ ФОРМАТЫ
+
+В настоящее время полностью поддерживаются:
+1. Текстовые файлы (.txt) - UTF-8, Windows-1251, UTF-16, ASCII
+2. Markdown файлы (.md) - как обычный текст
+3. RTF файлы (.rtf) - с очисткой разметки
+4. FictionBook файлы (.fb2) - с полной стилизацией XML
+5. XML файлы (.xml) - с автоматическим определением FictionBook
+
+Базовая поддержка:
+6. PDF файлы (.pdf) - показывается сообщение о неподдержке
+7. Word файлы (.doc, .docx) - показывается сообщение о неподдержке
+
+ГЛАВА 4: ИНСТРУКЦИИ ПО ИСПОЛЬЗОВАНИЮ
+
+1. Добавьте книгу в библиотеку через кнопку 'Добавить книгу'
+2. Выберите книгу в списке
+3. Нажмите 'Читать книгу' или дважды кликните по книге
+4. Используйте кнопки A+ и A- для изменения размера шрифта
+5. Прокручивайте текст для отслеживания прогресса
+6. Вернитесь к библиотеке кнопкой 'Вернуться к библиотеке'
+
+ГЛАВА 5: ТЕХНИЧЕСКИЕ ДЕТАЛИ
+
+Приложение автоматически:
+• Определяет кодировку текстовых файлов
+• Проверяет, является ли содержимое текстовым
+• Форматирует текст для удобного чтения
+• Ограничивает длину файлов для производительности
+• Обрабатывает ошибки чтения
+
+ГЛАВА 6: ЗАКЛЮЧЕНИЕ
+
+Этот демонстрационный файл поможет вам протестировать все функции читателя. Попробуйте:
+• Изменить размер шрифта
+• Прокрутить текст
+• Отследить прогресс чтения
+• Вернуться к библиотеке
+
+Спасибо за использование приложения библиотеки!
+
+---
+Конец демонстрационного файла
+Создано: " + DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss");
+        }
+        
+
     }
 }
