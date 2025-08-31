@@ -650,13 +650,16 @@
                                             VerticalAlignment="Center">
                                     <Button x:Name="BackToWelcomeButton"
                                             Content="← Назад"
-                                            Height="35"
-                                            Padding="15,8"
+                                            Height="40"
+                                            Width="120"
+                                            Padding="20,10"
                                             Background="{DynamicResource ButtonBackgroundBrush}"
                                             BorderBrush="{DynamicResource ButtonBorderBrush}"
                                             Foreground="{DynamicResource TextBrush}"
                                             Click="BackToWelcome_Click"
-                                            Style="{StaticResource RoundedButtonStyle}"/>
+                                            Style="{StaticResource RoundedButtonStyle}"
+                                            FontSize="14"
+                                            FontWeight="SemiBold"/>
                                 </StackPanel>
                             </Grid>
                         </Border>

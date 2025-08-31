@@ -179,8 +179,12 @@ namespace LIB
 
         private void LibraryTitle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            // Возврат на главную страницу
-            // Здесь можно добавить логику для сброса к главной странице
+            // Скрываем все панели
+            BooksGridPanel.Visibility = Visibility.Collapsed;
+            ReadingPanel.Visibility = Visibility.Collapsed;
+            
+            // Показываем главную панель
+            WelcomePanel.Visibility = Visibility.Visible;
         }
 
         private void AddBookButton_Click(object sender, RoutedEventArgs e)
@@ -209,12 +213,8 @@ namespace LIB
                     // Создаём новую книгу и добавляем в список
                     Book newBook = new Book(title, author, filePath, fileName);
                     
-                    // Ищем обложку в файле
-                    string coverPath = FindBookCover(filePath);
-                    if (!string.IsNullOrEmpty(coverPath))
-                    {
-                        newBook.CoverImageSource = coverPath;
-                    }
+                    // Устанавливаем заглушку обложки
+                    newBook.CoverImageSource = FindBookCover(filePath);
                     
                     books.Add(newBook);
 
@@ -1618,6 +1618,31 @@ namespace LIB
         }
         
         /// <summary>
+        /// Возвращает путь к заглушке обложки в зависимости от типа файла
+        /// </summary>
+        private string GetCoverPlaceholder(string filePath)
+        {
+            string extension = System.IO.Path.GetExtension(filePath).ToLower();
+            string imgFolder = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img");
+            
+            switch (extension)
+            {
+                case ".fb2":
+                    return System.IO.Path.Combine(imgFolder, "fb2-cover-placeholder.svg");
+                case ".txt":
+                    return System.IO.Path.Combine(imgFolder, "text-cover-placeholder.svg");
+                case ".md":
+                    return System.IO.Path.Combine(imgFolder, "markdown-cover-placeholder.svg");
+                case ".rtf":
+                    return System.IO.Path.Combine(imgFolder, "rtf-cover-placeholder.svg");
+                case ".xml":
+                    return System.IO.Path.Combine(imgFolder, "xml-cover-placeholder.svg");
+                default:
+                    return System.IO.Path.Combine(imgFolder, "unknown-cover-placeholder.svg");
+            }
+        }
+        
+        /// <summary>
         /// Ищет обложку в FictionBook файле
         /// </summary>
         private string FindBookCover(string filePath)
@@ -1637,22 +1662,18 @@ namespace LIB
                     
                     if (binaryNodes != null && binaryNodes.Count > 0)
                     {
-                        // Возвращаем путь к временному файлу с обложкой
-                        string tempDir = System.IO.Path.GetTempPath();
-                        string coverFileName = $"cover_{Guid.NewGuid()}.jpg";
-                        string coverPath = System.IO.Path.Combine(tempDir, coverFileName);
-                        
                         // TODO: Декодировать base64 и сохранить изображение
                         // Пока возвращаем заглушку
-                        return "";
+                        return GetCoverPlaceholder(filePath);
                     }
                 }
                 
-                return "";
+                // Возвращаем заглушку для всех файлов
+                return GetCoverPlaceholder(filePath);
             }
             catch
             {
-                return "";
+                return GetCoverPlaceholder(filePath);
             }
         }
         
@@ -1707,6 +1728,8 @@ namespace LIB
                 PageText.Text = $"Страница 1 из {bookPages.Count}";
             }
         }
+        
+
         
         /// <summary>
         /// Показывает панель с гридом книг
@@ -1788,9 +1811,217 @@ namespace LIB
         {
             if (sender is Button button && button.Tag is Book book)
             {
-                // TODO: Реализовать редактирование книги
-                MessageBox.Show($"Редактирование книги: {book.Title}", "Редактирование", MessageBoxButton.OK, MessageBoxImage.Information);
+                ShowEditBookDialog(book);
             }
+        }
+        
+        /// <summary>
+        /// Показывает диалог редактирования книги
+        /// </summary>
+        private void ShowEditBookDialog(Book book)
+        {
+            // Создаём окно редактирования
+            var editWindow = new Window
+            {
+                Title = $"Редактирование книги: {book.Title}",
+                Width = 700,
+                Height = 600,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = this.Resources["WindowBackgroundBrush"] as SolidColorBrush,
+                ResizeMode = ResizeMode.NoResize
+            };
+
+            var grid = new Grid();
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.Margin = new Thickness(30);
+
+            // Основная панель с полями
+            var stackPanel = new StackPanel();
+            
+            // Название книги
+            var titleLabel = new TextBlock
+            {
+                Text = "Название книги:",
+                FontSize = 16,
+                FontWeight = FontWeights.Bold,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            stackPanel.Children.Add(titleLabel);
+
+            var titleTextBox = new TextBox
+            {
+                Text = book.Title,
+                FontSize = 16,
+                Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(15, 12, 15, 12),
+                Margin = new Thickness(0, 0, 0, 20),
+                Height = 45
+            };
+            stackPanel.Children.Add(titleTextBox);
+
+            // Автор
+            var authorLabel = new TextBlock
+            {
+                Text = "Автор:",
+                FontSize = 16,
+                FontWeight = FontWeights.Bold,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            stackPanel.Children.Add(authorLabel);
+
+            var authorTextBox = new TextBox
+            {
+                Text = book.Author,
+                FontSize = 16,
+                Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(15, 12, 15, 12),
+                Margin = new Thickness(0, 0, 0, 20),
+                Height = 45
+            };
+            stackPanel.Children.Add(authorTextBox);
+
+            // Путь к файлу (только для чтения)
+            var fileLabel = new TextBlock
+            {
+                Text = "Файл:",
+                FontSize = 16,
+                FontWeight = FontWeights.Bold,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            stackPanel.Children.Add(fileLabel);
+
+            var fileTextBox = new TextBox
+            {
+                Text = book.FilePath,
+                FontSize = 14,
+                Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(15, 12, 15, 12),
+                Margin = new Thickness(0, 0, 0, 20),
+                IsReadOnly = true,
+                TextWrapping = TextWrapping.Wrap,
+                Height = 60
+            };
+            stackPanel.Children.Add(fileTextBox);
+
+            // Дата добавления (только для чтения)
+            var dateLabel = new TextBlock
+            {
+                Text = "Дата добавления:",
+                FontSize = 16,
+                FontWeight = FontWeights.Bold,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            stackPanel.Children.Add(dateLabel);
+
+            var dateTextBox = new TextBox
+            {
+                Text = book.AddedDate.ToString("dd.MM.yyyy HH:mm"),
+                FontSize = 16,
+                Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(15, 12, 15, 12),
+                Margin = new Thickness(0, 0, 0, 20),
+                IsReadOnly = true,
+                Height = 45
+            };
+            stackPanel.Children.Add(dateTextBox);
+
+            Grid.SetRow(stackPanel, 0);
+            grid.Children.Add(stackPanel);
+
+            // Панель кнопок
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 20, 0, 0)
+            };
+
+            var saveButton = new Button
+            {
+                Content = "💾 Сохранить",
+                Width = 150,
+                Height = 45,
+                Background = this.Resources["AccentBrush"] as SolidColorBrush ?? new SolidColorBrush(Colors.Blue),
+                Foreground = new SolidColorBrush(Colors.White),
+                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
+                Style = this.Resources["RoundedButtonStyle"] as Style,
+                Margin = new Thickness(0, 0, 15, 0),
+                FontSize = 16,
+                FontWeight = FontWeights.SemiBold
+            };
+
+            var cancelButton = new Button
+            {
+                Content = "❌ Отмена",
+                Width = 150,
+                Height = 45,
+                Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
+                Style = this.Resources["RoundedButtonStyle"] as Style,
+                FontSize = 16,
+                FontWeight = FontWeights.SemiBold
+            };
+
+            buttonPanel.Children.Add(saveButton);
+            buttonPanel.Children.Add(cancelButton);
+
+            Grid.SetRow(buttonPanel, 1);
+            grid.Children.Add(buttonPanel);
+
+            editWindow.Content = grid;
+
+            // Обработчики кнопок
+            saveButton.Click += (s, e) =>
+            {
+                // Сохраняем изменения
+                book.Title = titleTextBox.Text.Trim();
+                book.Author = authorTextBox.Text.Trim();
+                
+                // Проверяем, что название не пустое
+                if (string.IsNullOrWhiteSpace(book.Title))
+                {
+                    MessageBox.Show("Название книги не может быть пустым!", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Сохраняем в JSON
+                SaveBooksToJson();
+                
+                // Обновляем отображение
+                UpdateBooksDisplay();
+                UpdateBooksGridDisplay();
+                
+                editWindow.Close();
+                
+                MessageBox.Show($"Книга '{book.Title}' успешно отредактирована!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+            };
+
+            cancelButton.Click += (s, e) =>
+            {
+                editWindow.Close();
+            };
+
+            // Показываем окно
+            editWindow.ShowDialog();
         }
         
         /// <summary>
