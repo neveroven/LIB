@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:LIB"
         mc:Ignorable="d"
         Title="LIB - Библиотека"
-        Height="600" Width="1000"
+        Height="600" Width="1196"
         MinHeight="500" MinWidth="800"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource WindowBackgroundBrush}">
@@ -182,7 +182,7 @@
                             Style="{StaticResource RoundedButtonStyle}"
                             Click="BooksButton_Click"/>
                     
-                    <Button x:Name="AuthorsButton"
+                    <!--<Button x:Name="AuthorsButton"
                             Content="✍️ Авторы"
                             Height="45"
                             Margin="0,5"
@@ -224,7 +224,7 @@
                             Foreground="{DynamicResource TextBrush}"
                             FontSize="14"
                             HorizontalAlignment="Stretch"
-                            Style="{StaticResource RoundedButtonStyle}"/>
+                            Style="{StaticResource RoundedButtonStyle}"/>-->
                 </StackPanel>
                 
                 <!-- Дополнительные опции внизу -->
@@ -339,7 +339,7 @@
                                            HorizontalAlignment="Center"
                                            Foreground="{DynamicResource TextBrush}"
                                            Margin="0,0,0,10"/>
-                                <TextBlock Text="Управляйте книгами, авторами и читателями в удобном интерфейсе"
+                                <TextBlock Text="Управляйте книгами в удобном интерфейсе"
                                            FontSize="16"
                                            HorizontalAlignment="Center"
                                            Foreground="{DynamicResource TextBrush}"
@@ -584,21 +584,11 @@
                                             Foreground="{DynamicResource TextBrush}"
                                             Style="{StaticResource RoundedButtonStyle}"/>
                                     
-                                    <Button x:Name="CreateDemoFileButton"
-                                            Content="📝 Демо-файл"
-                                            Width="120"
-                                            Height="35"
-                                            Margin="5"
-                                            Background="{DynamicResource ButtonBackgroundBrush}"
-                                            BorderBrush="{DynamicResource ButtonBorderBrush}"
-                                            Foreground="{DynamicResource TextBrush}"
-                                            Click="CreateDemoFile_Click"
-                                            Style="{StaticResource RoundedButtonStyle}"
-                                            ToolTip="Создать демонстрационный текстовый файл для тестирования чтения"/>
+                                    
                                     
                                     <Button x:Name="ResetAllProgressButton"
                                             Content="🔄 Сбросить прогресс"
-                                            Width="120"
+                                            Width="150"
                                             Height="35"
                                             Margin="5"
                                             Background="{DynamicResource ButtonBackgroundBrush}"
@@ -745,9 +735,9 @@
                                                             Width="30" 
                                                             Height="30" 
                                                             Margin="3"
-                                                            Background="{DynamicResource AccentBrush}"
+                                                            Background="{DynamicResource ButtonBackgroundBrush}"
                                                             BorderBrush="{DynamicResource ButtonBorderBrush}"
-                                                            Foreground="White"
+                                                            Foreground="{DynamicResource TextBrush}"
                                                             Click="ReadBookFromGrid_Click"
                                                             Tag="{Binding}"
                                                             Style="{StaticResource RoundedButtonStyle}"
@@ -881,7 +871,7 @@
                                             Foreground="{DynamicResource TextBrush}"
                                             Style="{StaticResource RoundedButtonStyle}"
                                             Click="PreviousPage_Click"
-                                            ToolTip="Предыдущая страница (← или Page Up)"/>
+                                            ToolTip="Предыдущая страница (←, ↑ или Page Up)"/>
                                     
                                     <Button x:Name="NextPageButton"
                                             Content="→"
@@ -892,7 +882,7 @@
                                             Foreground="{DynamicResource TextBrush}"
                                             Style="{StaticResource RoundedButtonStyle}"
                                             Click="NextPage_Click"
-                                            ToolTip="Следующая страница (→, Page Down или Пробел)"/>
+                                            ToolTip="Следующая страница (→, ↓, Page Down или Пробел)"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
@@ -904,15 +894,14 @@
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Padding="30">
-                            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                <TextBlock x:Name="BookContentText"
-                                           Text="Здесь будет отображаться содержимое книги..."
-                                           FontSize="18"
-                                           Foreground="{DynamicResource TextBrush}"
-                                           TextWrapping="Wrap"
-                                           LineHeight="28"
-                                           TextAlignment="Justify"/>
-                            </ScrollViewer>
+                            <TextBlock x:Name="BookContentText"
+                                       Text="Здесь будет отображаться содержимое книги..."
+                                       FontSize="18"
+                                       Foreground="{DynamicResource TextBrush}"
+                                       TextWrapping="Wrap"
+                                       LineHeight="28"
+                                       TextAlignment="Justify"
+                                       VerticalAlignment="Top"/>
                         </Border>
                         
                         <!-- Нижняя панель с прогрессом -->

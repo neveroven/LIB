@@ -9,7 +9,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="PdfPig" Version="0.1.11" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Reference Include="Microsoft.VisualBasic" />
   </ItemGroup>
+
+
 
 </Project>

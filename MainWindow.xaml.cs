@@ -12,6 +12,9 @@ using Microsoft.Win32;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using UglyToad.PdfPig;
+using UglyToad.PdfPig.Content;
+
 
 namespace LIB
 {
@@ -91,7 +94,7 @@ namespace LIB
         // Система страниц
         private List<string> bookPages = new List<string>();
         private int currentPageIndex = 0;
-        private Book currentBook = null;
+        private Book? currentBook = null;
         
         // Прогресс чтения
         private Dictionary<string, ReadingProgress> readingProgress = new Dictionary<string, ReadingProgress>();
@@ -674,12 +677,26 @@ namespace LIB
         /// <summary>
         /// Показывает содержимое книги с разбивкой на страницы
         /// </summary>
-        private void ShowBookContentPlaceholder(Book book)
+        private async void ShowBookContentPlaceholder(Book book)
         {
             try
             {
+                // Показываем статус загрузки
+                StatusText.Text = "Загрузка книги...";
+                
                 // Пытаемся прочитать содержимое файла
-                string content = ReadBookContent(book.FilePath);
+                string content;
+                if (System.IO.Path.GetExtension(book.FilePath).ToLower() == ".pdf")
+                {
+                    // Для PDF используем асинхронное чтение
+                    content = await ReadBookContentAsync(book.FilePath);
+                }
+                else
+                {
+                    // Для других форматов используем синхронное чтение
+                    content = ReadBookContent(book.FilePath);
+                }
+                
                 if (!string.IsNullOrEmpty(content))
                 {
                     // Создаём страницы из содержимого
@@ -702,6 +719,40 @@ namespace LIB
         
         /// <summary>
         /// Читает содержимое файла книги
+        /// </summary>
+        private async Task<string> ReadBookContentAsync(string filePath)
+        {
+            if (!File.Exists(filePath))
+            {
+                throw new FileNotFoundException("Файл не найден");
+            }
+            
+            string extension = System.IO.Path.GetExtension(filePath).ToLower();
+            
+            switch (extension)
+            {
+                case ".txt":
+                    return ReadTextFile(filePath);
+                case ".md":
+                    return ReadTextFile(filePath);
+                case ".rtf":
+                    return ReadRtfFile(filePath);
+                case ".fb2":
+                    return ReadFictionBookFile(filePath);
+                case ".xml":
+                    return ReadXmlFile(filePath);
+                case ".pdf":
+                    return await ReadPdfFileAsync(filePath);
+                case ".doc":
+                case ".docx":
+                    return ReadWordFile(filePath);
+                default:
+                    return ReadTextFile(filePath); // Пробуем как текстовый
+            }
+        }
+        
+        /// <summary>
+        /// Читает содержимое файла книги (синхронная версия для совместимости)
         /// </summary>
         private string ReadBookContent(string filePath)
         {
@@ -790,20 +841,84 @@ namespace LIB
         }
         
         /// <summary>
-        /// Читает PDF файл (базовая поддержка)
+        /// Читает PDF файл с полной поддержкой (асинхронно для больших файлов)
+        /// </summary>
+        private async Task<string> ReadPdfFileAsync(string filePath)
+        {
+            return await Task.Run(() => ReadPdfFile(filePath));
+        }
+        
+        /// <summary>
+        /// Читает PDF файл с полной поддержкой
         /// </summary>
         private string ReadPdfFile(string filePath)
         {
             try
             {
-                // Пока что возвращаем сообщение о том, что PDF не поддерживается
-                return "📄 PDF файлы пока не поддерживаются для чтения.\n\n" +
-                       "Пожалуйста, используйте текстовые файлы (.txt) или RTF файлы (.rtf).\n\n" +
-                       "В будущем будет добавлена полная поддержка PDF.";
+                using (PdfDocument document = PdfDocument.Open(filePath))
+                {
+                    var result = new StringBuilder();
+                    
+                    // Получаем информацию о документе
+                    var information = document.Information;
+                    var title = information?.Title ?? "Неизвестно";
+                    var author = information?.Author ?? "Неизвестно";
+                    var subject = information?.Subject ?? "";
+                    var creator = information?.Creator ?? "";
+                    var producer = information?.Producer ?? "";
+                    var creationDate = information?.CreationDate?.ToString() ?? "";
+                    // var modificationDate = information?.ModificationDate?.ToString("dd.MM.yyyy HH:mm", System.Globalization.CultureInfo.InvariantCulture) ?? "";
+                    
+                    // Убираем метаданные и заголовки для чистого чтения
+                    
+                    int pageCount = 0;
+                    int totalPages = document.NumberOfPages;
+                    
+                    // Убираем системную отладку для чистого чтения
+                    
+                    foreach (UglyToad.PdfPig.Content.Page page in document.GetPages())
+                    {
+                        pageCount++;
+                        
+                        // Убираем отладочную информацию о прогрессе
+                        
+                        // Убираем заголовки страниц для чистого чтения
+                        
+                        // Извлекаем текст со страницы
+                        string pageText = page.Text;
+                        if (!string.IsNullOrWhiteSpace(pageText))
+                        {
+                            // Очищаем и форматируем текст
+                            pageText = CleanPdfText(pageText);
+                            result.AppendLine(pageText);
+                        }
+                        else
+                        {
+                            result.AppendLine("[Страница не содержит текста или содержит только изображения]");
+                        }
+                        
+                        result.AppendLine();
+                        result.AppendLine();
+                    }
+                    
+                    // Убираем системную информацию о прочтении
+                    
+                    return result.ToString();
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                return null;
+                return $"❌ Ошибка при чтении PDF файла: {ex.Message}\n\n" +
+                       "Возможные причины:\n" +
+                       "• Файл повреждён или защищён паролем\n" +
+                       "• Неподдерживаемый формат PDF\n" +
+                       "• Недостаточно прав для чтения файла\n" +
+                       "• Файл зашифрован или имеет ограничения\n\n" +
+                       "Попробуйте:\n" +
+                       "• Проверить целостность файла\n" +
+                       "• Открыть файл в другом PDF-ридере\n" +
+                       "• Использовать другой PDF файл\n" +
+                       "• Убрать защиту с PDF файла";
             }
         }
         
@@ -974,7 +1089,7 @@ namespace LIB
                     {
                         foreach (System.Xml.XmlNode pNode in paragraphs)
                         {
-                            string text = pNode.InnerText?.Trim();
+                            string? text = pNode.InnerText?.Trim();
                             if (!string.IsNullOrEmpty(text))
                             {
                                 result += $"{text}\n\n";
@@ -989,7 +1104,7 @@ namespace LIB
                         {
                             foreach (System.Xml.XmlNode textNode in textNodes)
                             {
-                                string text = textNode.Value?.Trim();
+                                string? text = textNode.Value?.Trim();
                                 if (!string.IsNullOrEmpty(text) && text.Length > 10)
                                 {
                                     result += $"{text}\n\n";
@@ -1133,12 +1248,17 @@ namespace LIB
                         result += ParseSection(childNode);
                         break;
                     case "p":
-                        result += $"{childNode.InnerText.Trim()}\n\n";
+                        string paragraphText = childNode.InnerText.Trim();
+                        // Форматируем абзац для правильного отображения
+                        paragraphText = FormatParagraphText(paragraphText);
+                        result += $"{paragraphText}\n\n";
                         break;
                     default:
                         if (!string.IsNullOrEmpty(childNode.InnerText?.Trim()))
                         {
-                            result += $"{childNode.InnerText.Trim()}\n\n";
+                            string defaultText = childNode.InnerText.Trim();
+                            defaultText = FormatParagraphText(defaultText);
+                            result += $"{defaultText}\n\n";
                         }
                         break;
                 }
@@ -1170,7 +1290,9 @@ namespace LIB
                         // Уже обработали выше
                         break;
                     case "p":
-                        result += $"{childNode.InnerText.Trim()}\n\n";
+                        string paragraphText = childNode.InnerText.Trim();
+                        paragraphText = FormatParagraphText(paragraphText);
+                        result += $"{paragraphText}\n\n";
                         break;
                     case "section":
                         result += ParseSection(childNode);
@@ -1265,6 +1387,12 @@ namespace LIB
             // Убираем лишние пробелы и переносы строк
             content = content.Replace("\r\n", "\n").Replace("\r", "\n");
             
+            // Исправляем слипание предложений - добавляем пробелы после точек, восклицательных и вопросительных знаков
+            content = System.Text.RegularExpressions.Regex.Replace(content, @"([.!?])([А-ЯЁA-Z])", "$1 $2");
+            
+            // Исправляем слипание после запятых, точек с запятой, двоеточий
+            content = System.Text.RegularExpressions.Regex.Replace(content, @"([,;:])([А-ЯЁA-Zа-яёa-z])", "$1 $2");
+            
             // Убираем множественные пробелы
             while (content.Contains("  "))
             {
@@ -1285,6 +1413,166 @@ namespace LIB
             }
             
             return content;
+        }
+        
+        /// <summary>
+        /// Форматирует размер файла в читаемый вид
+        /// </summary>
+        private string FormatFileSize(long bytes)
+        {
+            string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+            double len = bytes;
+            int order = 0;
+            while (len >= 1024 && order < sizes.Length - 1)
+            {
+                order++;
+                len = len / 1024;
+            }
+            return $"{len:0.##} {sizes[order]}";
+        }
+        
+        /// <summary>
+        /// Извлекает базовую информацию из PDF файла
+        /// </summary>
+        private string ExtractBasicPdfInfo(string filePath)
+        {
+            try
+            {
+                // Читаем первые несколько килобайт файла для поиска метаданных
+                using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+                {
+                    var buffer = new byte[Math.Min(8192, (int)fileStream.Length)];
+                    int bytesRead = fileStream.Read(buffer, 0, buffer.Length);
+                    string content = Encoding.UTF8.GetString(buffer);
+                    
+                    var result = new StringBuilder();
+                    
+                    // Ищем базовые метаданные в PDF
+                    if (content.Contains("/Title"))
+                    {
+                        var titleMatch = System.Text.RegularExpressions.Regex.Match(content, @"/Title\s*\(([^)]+)\)");
+                        if (titleMatch.Success)
+                        {
+                            result.AppendLine($"📚 Название: {titleMatch.Groups[1].Value}");
+                        }
+                    }
+                    
+                    if (content.Contains("/Author"))
+                    {
+                        var authorMatch = System.Text.RegularExpressions.Regex.Match(content, @"/Author\s*\(([^)]+)\)");
+                        if (authorMatch.Success)
+                        {
+                            result.AppendLine($"✍️ Автор: {authorMatch.Groups[1].Value}");
+                        }
+                    }
+                    
+                    if (content.Contains("/Subject"))
+                    {
+                        var subjectMatch = System.Text.RegularExpressions.Regex.Match(content, @"/Subject\s*\(([^)]+)\)");
+                        if (subjectMatch.Success)
+                        {
+                            result.AppendLine($"📝 Тема: {subjectMatch.Groups[1].Value}");
+                        }
+                    }
+                    
+                    if (content.Contains("/Creator"))
+                    {
+                        var creatorMatch = System.Text.RegularExpressions.Regex.Match(content, @"/Creator\s*\(([^)]+)\)");
+                        if (creatorMatch.Success)
+                        {
+                            result.AppendLine($"🛠️ Создано в: {creatorMatch.Groups[1].Value}");
+                        }
+                    }
+                    
+                    if (content.Contains("/Producer"))
+                    {
+                        var producerMatch = System.Text.RegularExpressions.Regex.Match(content, @"/Producer\s*\(([^)]+)\)");
+                        if (producerMatch.Success)
+                        {
+                            result.AppendLine($"⚙️ Обработано: {producerMatch.Groups[1].Value}");
+                        }
+                    }
+                    
+                    // Ищем количество страниц
+                    var pageCountMatch = System.Text.RegularExpressions.Regex.Match(content, @"/Count\s+(\d+)");
+                    if (pageCountMatch.Success)
+                    {
+                        result.AppendLine($"📊 Количество страниц: {pageCountMatch.Groups[1].Value}");
+                    }
+                    
+                    return result.ToString();
+                }
+            }
+            catch
+            {
+                return "";
+            }
+        }
+        
+        /// <summary>
+        /// Очищает и форматирует текст из PDF
+        /// </summary>
+        private string CleanPdfText(string pdfText)
+        {
+            if (string.IsNullOrEmpty(pdfText))
+                return pdfText;
+            
+            // Убираем лишние пробелы и переносы строк
+            pdfText = pdfText.Replace("\r\n", "\n").Replace("\r", "\n");
+            
+            // Исправляем слипание предложений - добавляем пробелы после точек, восклицательных и вопросительных знаков
+            pdfText = System.Text.RegularExpressions.Regex.Replace(pdfText, @"([.!?])([А-ЯЁA-Z])", "$1 $2");
+            
+            // Исправляем слипание после запятых, точек с запятой, двоеточий
+            pdfText = System.Text.RegularExpressions.Regex.Replace(pdfText, @"([,;:])([А-ЯЁA-Zа-яёa-z])", "$1 $2");
+            
+            // Убираем множественные пробелы
+            while (pdfText.Contains("  "))
+            {
+                pdfText = pdfText.Replace("  ", " ");
+            }
+            
+            // Убираем множественные переносы строк
+            while (pdfText.Contains("\n\n\n"))
+            {
+                pdfText = pdfText.Replace("\n\n\n", "\n\n");
+            }
+            
+            // Убираем лишние пробелы в начале и конце строк
+            var lines = pdfText.Split('\n');
+            for (int i = 0; i < lines.Length; i++)
+            {
+                lines[i] = lines[i].Trim();
+            }
+            pdfText = string.Join("\n", lines);
+            
+            // Убираем пустые строки в начале и конце
+            pdfText = pdfText.Trim();
+            
+            return pdfText;
+        }
+        
+        /// <summary>
+        /// Форматирует текст абзаца для правильного отображения
+        /// </summary>
+        private string FormatParagraphText(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return text;
+            
+            // Исправляем слипание предложений - добавляем пробелы после точек, восклицательных и вопросительных знаков
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"([.!?])([А-ЯЁA-Z])", "$1 $2");
+            
+            // Исправляем слипание после запятых, точек с запятой, двоеточий
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"([,;:])([А-ЯЁA-Zа-яёa-z])", "$1 $2");
+            
+            // Убираем множественные пробелы
+            while (text.Contains("  "))
+            {
+                text = text.Replace("  ", " ");
+            }
+            
+            return text.Trim();
         }
         
         /// <summary>
@@ -1312,6 +1600,12 @@ namespace LIB
             cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\\[a-z]+\d*", "");
             cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\{[^}]*\}", "");
             cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\\'[0-9a-fA-F]{2}", "");
+            
+            // Исправляем слипание предложений - добавляем пробелы после точек, восклицательных и вопросительных знаков
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"([.!?])([А-ЯЁA-Z])", "$1 $2");
+            
+            // Исправляем слипание после запятых, точек с запятой, двоеточий
+            cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"([,;:])([А-ЯЁA-Zа-яёa-z])", "$1 $2");
             
             // Убираем лишние пробелы
             cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, @"\s+", " ");
@@ -1455,12 +1749,14 @@ namespace LIB
                 {
                     case Key.Left:
                     case Key.PageUp:
+                    case Key.Up:
                         GoToPreviousPage();
                         e.Handled = true;
                         break;
                     case Key.Right:
                     case Key.PageDown:
                     case Key.Space:
+                    case Key.Down:
                         GoToNextPage();
                         e.Handled = true;
                         break;
@@ -1637,6 +1933,8 @@ namespace LIB
                     return System.IO.Path.Combine(imgFolder, "rtf-cover-placeholder.svg");
                 case ".xml":
                     return System.IO.Path.Combine(imgFolder, "xml-cover-placeholder.svg");
+                case ".pdf":
+                    return System.IO.Path.Combine(imgFolder, "pdf-cover-placeholder.svg");
                 default:
                     return System.IO.Path.Combine(imgFolder, "unknown-cover-placeholder.svg");
             }
@@ -1678,15 +1976,26 @@ namespace LIB
         }
         
         /// <summary>
-        /// Создаёт страницы из содержимого книги
+        /// Создаёт страницы из содержимого книги с адаптивным размером
         /// </summary>
         private void CreateBookPages(string content)
         {
             bookPages.Clear();
             
-            // Разбиваем содержимое на страницы
-            // Примерно 2000 символов на страницу для удобного чтения
-            const int charsPerPage = 2000;
+            // Получаем размеры экрана для адаптивного размера страниц
+            var screenHeight = SystemParameters.PrimaryScreenHeight;
+            var screenWidth = SystemParameters.PrimaryScreenWidth;
+            
+            // Вычисляем оптимальное количество символов на страницу
+            // Базовый размер: ~50 символов в строке, ~30 строк на экран
+            int baseCharsPerPage = 50 * 30; // 1500 символов
+            
+            // Адаптируем под размер экрана
+            double scaleFactor = Math.Min(screenHeight / 1080.0, screenWidth / 1920.0);
+            int charsPerPage = (int)(baseCharsPerPage * scaleFactor);
+            
+            // Ограничиваем размер страницы (минимум 1000, максимум 3000 символов)
+            charsPerPage = Math.Max(1000, Math.Min(3000, charsPerPage));
             
             if (content.Length <= charsPerPage)
             {
@@ -1704,9 +2013,24 @@ namespace LIB
                     // Ищем хорошее место для разрыва страницы (конец абзаца)
                     if (endIndex < content.Length)
                     {
-                        // Ищем ближайший конец строки или абзаца
-                        int breakIndex = content.LastIndexOf('\n', endIndex - 1, Math.Min(500, endIndex - startIndex));
-                        if (breakIndex > startIndex + charsPerPage / 2)
+                        // Ищем ближайший конец абзаца (двойной перенос строки) в пределах 300 символов
+                        int searchRange = Math.Min(300, endIndex - startIndex);
+                        int breakIndex = content.LastIndexOf("\n\n", endIndex - 1, searchRange);
+                        
+                        // Если не нашли двойной перенос, ищем одинарный
+                        if (breakIndex <= startIndex + charsPerPage / 4)
+                        {
+                            breakIndex = content.LastIndexOf('\n', endIndex - 1, searchRange);
+                        }
+                        
+                        // Если не нашли перенос строки, ищем точку
+                        if (breakIndex <= startIndex + charsPerPage / 4)
+                        {
+                            breakIndex = content.LastIndexOf('.', endIndex - 1, searchRange);
+                        }
+                        
+                        // Если нашли хорошее место для разрыва
+                        if (breakIndex > startIndex + charsPerPage / 4)
                         {
                             endIndex = breakIndex + 1;
                         }
@@ -2144,7 +2468,13 @@ namespace LIB
                               MessageBoxImage.Information);
             }
         }
-        
+
+        private void Clear_readingProgress()
+        {
+            readingProgress.Clear();
+        }
+
+
         /// <summary>
         /// Сброс прогресса чтения для всех книг
         /// </summary>
@@ -2163,7 +2493,9 @@ namespace LIB
                     SaveReadingProgress();
                     UpdateBooksDisplay();
                     UpdateBooksGridDisplay();
-                    
+                    Clear_readingProgress();
+
+
                     MessageBox.Show($"Прогресс чтения для всех книг сброшен.", 
                                   "Прогресс сброшен", 
                                   MessageBoxButton.OK, 
@@ -2179,118 +2511,7 @@ namespace LIB
             }
         }
         
-        /// <summary>
-        /// Создаёт демонстрационный текстовый файл для тестирования чтения
-        /// </summary>
-        private void CreateDemoFile_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                string demoContent = CreateDemoTextContent();
-                string fileName = "Демо-книга.txt";
-                string filePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
-                
-                // Создаём файл с кодировкой UTF-8
-                File.WriteAllText(filePath, demoContent, Encoding.UTF8);
-                
-                // Добавляем в библиотеку
-                Book demoBook = new Book("Демонстрационная книга", "Система", filePath, fileName);
-                books.Add(demoBook);
-                
-                // Сохраняем в JSON
-                SaveBooksToJson();
-                
-                // Обновляем отображение
-                UpdateBooksDisplay();
-                
-                MessageBox.Show($"Демонстрационный файл создан: {fileName}\n\n" +
-                              "Теперь вы можете выбрать эту книгу и протестировать функцию чтения!", 
-                              "Демо-файл создан", 
-                              MessageBoxButton.OK, 
-                              MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка при создании демо-файла: {ex.Message}", 
-                              "Ошибка", 
-                              MessageBoxButton.OK, 
-                              MessageBoxImage.Error);
-            }
-        }
         
-        /// <summary>
-        /// Создаёт демонстрационное содержимое для тестирования
-        /// </summary>
-        private string CreateDemoTextContent()
-        {
-            return @"ДЕМОНСТРАЦИОННАЯ КНИГА
-
-Автор: Система
-Создано: " + DateTime.Now.ToString("dd.MM.yyyy HH:mm") + @"
-
-ГЛАВА 1: ВВЕДЕНИЕ
-
-Это демонстрационный текстовый файл, созданный для тестирования функции чтения в приложении библиотеки. Файл содержит пример текста, который поможет вам оценить качество отображения и функциональность читателя.
-
-ГЛАВА 2: ОСОБЕННОСТИ ЧТЕНИЯ
-
-Приложение поддерживает следующие возможности:
-• Чтение текстовых файлов (.txt) с различными кодировками
-• Поддержка RTF файлов (.rtf) с очисткой разметки
-• Чтение FictionBook (.fb2) с полной стилизацией XML
-• Автоматическое определение FictionBook в XML файлах
-• Извлечение метаданных (автор, жанр, аннотация)
-• Парсинг структуры глав и секций
-• Автоматическое определение текстового содержимого
-• Форматирование текста для удобного чтения
-• Отслеживание прогресса чтения
-• Изменение размера шрифта
-
-ГЛАВА 3: ПОДДЕРЖИВАЕМЫЕ ФОРМАТЫ
-
-В настоящее время полностью поддерживаются:
-1. Текстовые файлы (.txt) - UTF-8, Windows-1251, UTF-16, ASCII
-2. Markdown файлы (.md) - как обычный текст
-3. RTF файлы (.rtf) - с очисткой разметки
-4. FictionBook файлы (.fb2) - с полной стилизацией XML
-5. XML файлы (.xml) - с автоматическим определением FictionBook
-
-Базовая поддержка:
-6. PDF файлы (.pdf) - показывается сообщение о неподдержке
-7. Word файлы (.doc, .docx) - показывается сообщение о неподдержке
-
-ГЛАВА 4: ИНСТРУКЦИИ ПО ИСПОЛЬЗОВАНИЮ
-
-1. Добавьте книгу в библиотеку через кнопку 'Добавить книгу'
-2. Выберите книгу в списке
-3. Нажмите 'Читать книгу' или дважды кликните по книге
-4. Используйте кнопки A+ и A- для изменения размера шрифта
-5. Прокручивайте текст для отслеживания прогресса
-6. Вернитесь к библиотеке кнопкой 'Вернуться к библиотеке'
-
-ГЛАВА 5: ТЕХНИЧЕСКИЕ ДЕТАЛИ
-
-Приложение автоматически:
-• Определяет кодировку текстовых файлов
-• Проверяет, является ли содержимое текстовым
-• Форматирует текст для удобного чтения
-• Ограничивает длину файлов для производительности
-• Обрабатывает ошибки чтения
-
-ГЛАВА 6: ЗАКЛЮЧЕНИЕ
-
-Этот демонстрационный файл поможет вам протестировать все функции читателя. Попробуйте:
-• Изменить размер шрифта
-• Прокрутить текст
-• Отследить прогресс чтения
-• Вернуться к библиотеке
-
-Спасибо за использование приложения библиотеки!
-
----
-Конец демонстрационного файла
-Создано: " + DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss");
-        }
         
 
     }
