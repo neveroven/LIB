@@ -369,7 +369,8 @@
                                                Foreground="{DynamicResource TextBrush}"
                                                Margin="0,0,0,15"/>
                                     
-                                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="300">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="300" HorizontalScrollBarVisibility="Disabled">
+                                    
                                         <ListBox x:Name="BooksListBox"
                                                  Background="Transparent"
                                                  BorderThickness="0"
@@ -387,25 +388,27 @@
                                                         <StackPanel Grid.Column="0">
                                                             <TextBlock Text="{Binding Title}" 
                                                                        FontWeight="Bold" 
-                                                                       FontSize="14"/>
+                                                                       FontSize="14"
+                                                                       Width="620"/>
                                                             <TextBlock Text="{Binding Author}" 
                                                                        FontSize="12" 
                                                                        Opacity="0.8"/>
                                                             <TextBlock Text="{Binding FileName}" 
                                                                        FontSize="10" 
-                                                                       Opacity="0.6"/>
+                                                                       Opacity="0.6"
+                                                                       Width="620"/>
                                                         </StackPanel>
                                                         
                                                         <!-- Кнопки действий (появляются при наведении) -->
                                                         <StackPanel Grid.Column="1" 
                                                                     Orientation="Horizontal" 
-                                                                    Margin="10,0,0,0"
+                                                                    Margin="15,0,0,0"
                                                                     Opacity="0"
                                                                     x:Name="ActionButtons">
                                                             <Button Content="📚" 
                                                                     Width="25" 
                                                                     Height="25" 
-                                                                    Margin="2"
+                                                                    Margin="3"
                                                                     Background="{DynamicResource ButtonBackgroundBrush}"
                                                                     BorderBrush="{DynamicResource ButtonBorderBrush}"
                                                                     Foreground="{DynamicResource TextBrush}"
@@ -416,7 +419,7 @@
                                                             <Button Content="✏️" 
                                                                     Width="25" 
                                                                     Height="25" 
-                                                                    Margin="2"
+                                                                    Margin="3"
                                                                     Background="{DynamicResource ButtonBackgroundBrush}"
                                                                     BorderBrush="{DynamicResource ButtonBorderBrush}"
                                                                     Foreground="{DynamicResource TextBrush}"
@@ -427,7 +430,7 @@
                                                             <Button Content="🗑️" 
                                                                     Width="25" 
                                                                     Height="25" 
-                                                                    Margin="2"
+                                                                    Margin="3"
                                                                     Background="{DynamicResource ButtonBackgroundBrush}"
                                                                     BorderBrush="{DynamicResource ButtonBorderBrush}"
                                                                     Foreground="{DynamicResource TextBrush}"
