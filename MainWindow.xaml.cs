@@ -217,7 +217,7 @@ namespace LIB
                     Book newBook = new Book(title, author, filePath, fileName);
                     
                     // Устанавливаем заглушку обложки
-                    newBook.CoverImageSource = FindBookCover(filePath);
+                    newBook.CoverImageSource = GetCoverPlaceholder(filePath);
                     
                     books.Add(newBook);
 
@@ -1940,40 +1940,7 @@ namespace LIB
             }
         }
         
-        /// <summary>
-        /// Ищет обложку в FictionBook файле
-        /// </summary>
-        private string FindBookCover(string filePath)
-        {
-            try
-            {
-                if (System.IO.Path.GetExtension(filePath).ToLower() == ".fb2")
-                {
-                    string xmlContent = File.ReadAllText(filePath, Encoding.UTF8);
-                    var xmlDoc = new System.Xml.XmlDocument();
-                    xmlDoc.LoadXml(xmlContent);
-                    
-                    // Ищем тег binary с типом image
-                    var binaryNodes = xmlDoc.SelectNodes("//binary[@content-type='image/jpeg']") ?? 
-                                     xmlDoc.SelectNodes("//binary[@content-type='image/png']") ??
-                                     xmlDoc.SelectNodes("//binary[@content-type='image/gif']");
-                    
-                    if (binaryNodes != null && binaryNodes.Count > 0)
-                    {
-                        // TODO: Декодировать base64 и сохранить изображение
-                        // Пока возвращаем заглушку
-                        return GetCoverPlaceholder(filePath);
-                    }
-                }
-                
-                // Возвращаем заглушку для всех файлов
-                return GetCoverPlaceholder(filePath);
-            }
-            catch
-            {
-                return GetCoverPlaceholder(filePath);
-            }
-        }
+     
         
         /// <summary>
         /// Создаёт страницы из содержимого книги с адаптивным размером
@@ -2510,9 +2477,5 @@ namespace LIB
                               MessageBoxImage.Information);
             }
         }
-        
-        
-        
-
     }
 }
