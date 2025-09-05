@@ -152,7 +152,7 @@
                 
                 <!-- Заголовок боковой панели -->
                 <TextBlock Grid.Row="0"
-                           Text="📚 Библиотека" 
+                           Text="📚 Paradise" 
                            FontSize="20" 
                            FontWeight="Bold" 
                            Margin="0,0,0,20"
@@ -333,7 +333,7 @@
                                 Padding="25"
                                 Margin="0,0,0,20">
                             <StackPanel>
-                                <TextBlock Text="Добро пожаловать в библиотеку!"
+                            <TextBlock Text="Добро пожаловать в Paradise!"
                                            FontSize="28"
                                            FontWeight="Bold"
                                            HorizontalAlignment="Center"
@@ -631,7 +631,7 @@
                                                FontSize="28"
                                                FontWeight="Bold"
                                                Foreground="{DynamicResource TextBrush}"
-                                               Margin="0,0,0,5"/>
+                                               Margin="0,0,0,5" Cursor=""/>
                                     <TextBlock Text="Просматривайте и управляйте вашей коллекцией книг"
                                                FontSize="16"
                                                Foreground="{DynamicResource TextBrush}"
@@ -669,8 +669,8 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Width="200" 
-                                                Height="280" 
+                                        <Border Width="180" 
+                                                Height="350" 
                                                 Margin="10"
                                                 Background="{DynamicResource ButtonBackgroundBrush}"
                                                 BorderBrush="{DynamicResource ButtonBorderBrush}"
@@ -679,7 +679,7 @@
                                                 Padding="15">
                                             <Grid>
                                                 <Grid.RowDefinitions>
-                                                    <RowDefinition Height="120"/>
+                                                    <RowDefinition Height="190"/>
                                                     <RowDefinition Height="*"/>
                                                     <RowDefinition Height="Auto"/>
                                                 </Grid.RowDefinitions>

@@ -183,6 +183,8 @@ namespace LIB
         private void LibraryTitle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             // Скрываем все панели
+            
+            BackToLibraryButton.Visibility = Visibility.Collapsed;
             BooksGridPanel.Visibility = Visibility.Collapsed;
             ReadingPanel.Visibility = Visibility.Collapsed;
             
@@ -371,6 +373,7 @@ namespace LIB
         /// </summary>
         private void ClearBooksButton_Click(object sender, RoutedEventArgs e)
         {
+
             books.Clear();
             SaveBooksToJson();
             UpdateBooksDisplay();
@@ -1919,24 +1922,24 @@ namespace LIB
         private string GetCoverPlaceholder(string filePath)
         {
             string extension = System.IO.Path.GetExtension(filePath).ToLower();
-            string imgFolder = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img");
             
+                
             switch (extension)
             {
                 case ".fb2":
-                    return System.IO.Path.Combine(imgFolder, "fb2-cover-placeholder.svg");
+                    return "fb2.png";
                 case ".txt":
-                    return System.IO.Path.Combine(imgFolder, "text-cover-placeholder.svg");
+                    return "txt.png";
                 case ".md":
-                    return System.IO.Path.Combine(imgFolder, "markdown-cover-placeholder.svg");
+                    return "md.png";
                 case ".rtf":
-                    return System.IO.Path.Combine(imgFolder, "rtf-cover-placeholder.svg");
+                    return "rt.png";
                 case ".xml":
-                    return System.IO.Path.Combine(imgFolder, "xml-cover-placeholder.svg");
+                    return "xml.png";
                 case ".pdf":
-                    return System.IO.Path.Combine(imgFolder, "pdf-cover-placeholder.svg");
+                    return "pdf.png";
                 default:
-                    return System.IO.Path.Combine(imgFolder, "unknown-cover-placeholder.svg");
+                    return "unknown.png"; 
             }
         }
         
@@ -2030,7 +2033,7 @@ namespace LIB
             // Скрываем все панели
             WelcomePanel.Visibility = Visibility.Collapsed;
             ReadingPanel.Visibility = Visibility.Collapsed;
-            
+            BackToLibraryButton.Visibility = Visibility.Collapsed;
             // Показываем панель с гридом книг
             BooksGridPanel.Visibility = Visibility.Visible;
             
