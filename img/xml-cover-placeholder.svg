@@ -1,19 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="200" height="280" viewBox="0 0 200 280" xmlns="http://www.w3.org/2000/svg">
-  <!-- Фон -->
-  <rect width="200" height="280" fill="#2a2a2a" rx="8"/>
-  
-  <!-- Градиент для фона -->
-  <defs>
-    <linearGradient id="xmlGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#8a8a8a;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#2a2a2a;stop-opacity:1" />
-    </linearGradient>
-  </defs>
-  
-  <!-- Фон с градиентом -->
-  <rect width="200" height="280" fill="url(#xmlGradient)" rx="8"/>
-  
+
   <!-- Иконка XML -->
   <g transform="translate(50, 80)">
     <!-- Документ -->
@@ -24,32 +11,32 @@
     
     <!-- XML теги -->
     <!-- Открывающий тег -->
-    <text x="15" y="20" fill="#e74c3c" font-family="Consolas, monospace" font-size="10" font-weight="bold">&lt;</text>
-    <text x="20" y="20" fill="#333" font-family="Consolas, monospace" font-size="10" font-weight="bold">book</text>
-    <text x="45" y="20" fill="#e74c3c" font-family="Consolas, monospace" font-size="10" font-weight="bold">&gt;</text>
+    <text x="10" y="20" fill="#e74c3c" font-family="Consolas, monospace" font-size="8" font-weight="bold">&lt;</text>
+    <text x="15" y="20" fill="#333" font-family="Consolas, monospace" font-size="8" font-weight="bold">book</text>
+    <text x="33" y="20" fill="#e74c3c" font-family="Consolas, monospace" font-size="8" font-weight="bold">&gt;</text>
     
     <!-- Вложенный тег -->
-    <text x="20" y="35" fill="#e74c3c" font-family="Consolas, monospace" font-size="9" font-weight="bold">&lt;</text>
-    <text x="25" y="35" fill="#333" font-family="Consolas, monospace" font-size="9" font-weight="bold">title</text>
-    <text x="40" y="35" fill="#e74c3c" font-family="Consolas, monospace" font-size="9" font-weight="bold">&gt;</text>
-    <text x="45" y="35" fill="#333" font-family="Consolas, monospace" font-size="9">Название</text>
-    <text x="75" y="35" fill="#e74c3c" font-family="Consolas, monospace" font-size="9" font-weight="bold">&lt;/</text>
-    <text x="80" y="35" fill="#333" font-family="Consolas, monospace" font-size="9" font-weight="bold">title</text>
-    <text x="90" y="35" fill="#e74c3c" font-family="Consolas, monospace" font-size="9" font-weight="bold">&gt;</text>
+    <text x="10" y="35" fill="#e74c3c" font-family="Consolas, monospace" font-size="7" font-weight="bold">&lt;</text>
+    <text x="14" y="35" fill="#333" font-family="Consolas, monospace" font-size="6" font-weight="bold">title</text>
+    <text x="30" y="35" fill="#e74c3c" font-family="Consolas, monospace" font-size="7" font-weight="bold">&gt;</text>
+    <text x="35" y="35" fill="#333" font-family="Consolas, monospace" font-size="7">title</text>
+    <text x="55" y="35" fill="#e74c3c" font-family="Consolas, monospace" font-size="7" font-weight="bold">&lt;/</text>
+    <text x="62" y="35" fill="#333" font-family="Consolas, monospace" font-size="6" font-weight="bold">title</text>
+    <text x="79" y="35" fill="#e74c3c" font-family="Consolas, monospace" font-size="7" font-weight="bold">&gt;</text>
     
     <!-- Еще теги -->
-    <text x="20" y="50" fill="#e74c3c" font-family="Consolas, monospace" font-size="9" font-weight="bold">&lt;</text>
-    <text x="25" y="50" fill="#333" font-family="Consolas, monospace" font-size="9" font-weight="bold">author</text>
-    <text x="40" y="50" fill="#e74c3c" font-family="Consolas, monospace" font-size="9" font-weight="bold">&gt;</text>
-    <text x="45" y="50" fill="#333" font-family="Consolas, monospace" font-size="9">Автор</text>
-    <text x="65" y="50" fill="#e74c3c" font-family="Consolas, monospace" font-size="9" font-weight="bold">&lt;/</text>
-    <text x="70" y="50" fill="#333" font-family="Consolas, monospace" font-size="9" font-weight="bold">author</text>
-    <text x="80" y="50" fill="#e74c3c" font-family="Consolas, monospace" font-size="9" font-weight="bold">&gt;</text>
+    <text x="10" y="50" fill="#e74c3c" font-family="Consolas, monospace" font-size="7" font-weight="bold">&lt;</text>
+    <text x="14" y="50" fill="#333" font-family="Consolas, monospace" font-size="6" font-weight="bold">author</text>
+    <text x="33" y="50" fill="#e74c3c" font-family="Consolas, monospace" font-size="7" font-weight="bold">&gt;</text>
+    <text x="38" y="50" fill="#333" font-family="Consolas, monospace" font-size="7">author</text>
+    <text x="62" y="50" fill="#e74c3c" font-family="Consolas, monospace" font-size="7" font-weight="bold">&lt;/</text>
+    <text x="69" y="50" fill="#333" font-family="Consolas, monospace" font-size="6" font-weight="bold">author</text>
+    <text x="89" y="50" fill="#e74c3c" font-family="Consolas, monospace" font-size="7" font-weight="bold">&gt;</text>
     
     <!-- Закрывающий тег -->
-    <text x="15" y="65" fill="#e74c3c" font-family="Consolas, monospace" font-size="10" font-weight="bold">&lt;/</text>
-    <text x="25" y="65" fill="#333" font-family="Consolas, monospace" font-size="10" font-weight="bold">book</text>
-    <text x="45" y="65" fill="#e74c3c" font-family="Consolas, monospace" font-size="10" font-weight="bold">&gt;</text>
+    <text x="10" y="65" fill="#e74c3c" font-family="Consolas, monospace" font-size="8" font-weight="bold">&lt;/</text>
+    <text x="19" y="65" fill="#333" font-family="Consolas, monospace" font-size="8" font-weight="bold">book</text>
+    <text x="37" y="65" fill="#e74c3c" font-family="Consolas, monospace" font-size="8" font-weight="bold">&gt;</text>
     
     <!-- Дополнительные элементы -->
     <rect x="15" y="75" width="70" height="1" fill="#ddd" rx="0.5"/>
@@ -64,18 +51,6 @@
       XML
     </text>
   </g>
-  
-  <!-- Текст -->
-  <text x="100" y="220" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="14" font-weight="bold">
-    XML документ
-  </text>
-  
-  <text x="100" y="240" text-anchor="middle" fill="#cccccc" font-family="Arial, sans-serif" font-size="12">
-    .xml файл
-  </text>
-  
-  <!-- Декоративные элементы -->
-  <circle cx="30" cy="30" r="3" fill="#e74c3c" opacity="0.6"/>
-  <circle cx="170" cy="50" r="2" fill="#e74c3c" opacity="0.4"/>
-  <circle cx="40" cy="250" r="2" fill="#e74c3c" opacity="0.5"/>
+
+
 </svg>

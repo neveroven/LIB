@@ -1,19 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="200" height="280" viewBox="0 0 200 280" xmlns="http://www.w3.org/2000/svg">
-  <!-- Фон -->
-  <rect width="200" height="280" fill="#2a2a2a" rx="8"/>
-  
-  <!-- Градиент для фона -->
-  <defs>
-    <linearGradient id="fb2Gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#4a4a4a;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#2a2a2a;stop-opacity:1" />
-    </linearGradient>
-  </defs>
-  
-  <!-- Фон с градиентом -->
-  <rect width="200" height="280" fill="url(#fb2Gradient)" rx="8"/>
-  
+
   <!-- Иконка FictionBook -->
   <g transform="translate(50, 80)">
     <!-- Книга -->
@@ -37,18 +24,4 @@
     <!-- Закладка -->
     <rect x="85" y="10" width="8" height="20" fill="#e74c3c" rx="1"/>
   </g>
-  
-  <!-- Текст -->
-  <text x="100" y="220" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="14" font-weight="bold">
-    FictionBook
-  </text>
-  
-  <text x="100" y="240" text-anchor="middle" fill="#cccccc" font-family="Arial, sans-serif" font-size="12">
-    .fb2 файл
-  </text>
-  
-  <!-- Декоративные элементы -->
-  <circle cx="30" cy="30" r="3" fill="#3498db" opacity="0.6"/>
-  <circle cx="170" cy="50" r="2" fill="#3498db" opacity="0.4"/>
-  <circle cx="40" cy="250" r="2" fill="#3498db" opacity="0.5"/>
 </svg>
