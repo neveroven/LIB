@@ -139,7 +139,7 @@
         </Grid.ColumnDefinitions>
         
         <!-- Боковая панель -->
-        <Border Grid.Column="0" 
+        <Border x:Name="LeftPanel" Grid.Column="0" 
                 Background="{DynamicResource ButtonBackgroundBrush}" 
                 BorderBrush="{DynamicResource ButtonBorderBrush}" 
                 BorderThickness="0,0,1,0">
@@ -169,7 +169,7 @@
                 </TextBlock>
                 
                 <!-- Навигационные кнопки -->
-                <StackPanel Grid.Row="1">
+                <StackPanel x:Name="NavigationButtons" Grid.Row="1" Visibility="Collapsed">
                     <Button x:Name="BooksButton"
                             Content="📖 Книги"
                             Height="45"
@@ -228,7 +228,7 @@
                 </StackPanel>
                 
                 <!-- Дополнительные опции внизу -->
-                <StackPanel Grid.Row="2">
+                <StackPanel x:Name="SettingsButtons" Grid.Row="2">
                     <!-- Разделитель -->
                     <Separator Margin="0,20" Background="{DynamicResource ButtonBorderBrush}"/>
                     
@@ -268,7 +268,7 @@
         </Border>
         
                     <!-- Основной контент -->
-            <Grid Grid.Column="1">
+        <Grid x:Name="RightPanel" Grid.Column="1">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
@@ -316,8 +316,12 @@
                 
                 <!-- Основной контент -->
                 <Grid Grid.Row="1" Margin="20">
-                    <!-- Приветственная секция (по умолчанию) -->
-                    <Grid x:Name="WelcomePanel">
+                    <!-- Авторизация/регистрация -->
+                <Grid x:Name="AutorisationPanel">
+                    
+                </Grid>
+                <!-- Приветственная секция (по умолчанию) -->
+                <Grid x:Name="WelcomePanel" Visibility="Collapsed">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
@@ -378,9 +382,9 @@
                                                  MouseDoubleClick="BooksListBox_MouseDoubleClick">
                                             <ListBox.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Grid Margin="5">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*"/>
+                                                <Grid Margin="5">
+                                                    <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="400"/>
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
                                                         

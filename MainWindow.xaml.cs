@@ -65,7 +65,7 @@ namespace LIB
             FilePath = filePath;
             FileName = fileName;
             AddedDate = DateTime.Now;
-            CoverImageSource = ""; // По умолчанию обложка не задана
+            CoverImageSource = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img\\unknown.png"); // По умолчанию обложка не задана
             ProgressWidth = 0;
             ProgressText = "";
         }
@@ -1927,19 +1927,19 @@ namespace LIB
             switch (extension)
             {
                 case ".fb2":
-                    return "fb2.png";
+                    return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img\\fb2.png");
                 case ".txt":
-                    return "txt.png";
+                    return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img\\txt.png");
                 case ".md":
-                    return "md.png";
+                    return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img\\md.png");
                 case ".rtf":
-                    return "rt.png";
+                    return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img\\rt.png");
                 case ".xml":
-                    return "xml.png";
+                    return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img\\xml.png");
                 case ".pdf":
-                    return "pdf.png";
+                    return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img\\pdf.png");
                 default:
-                    return "unknown.png"; 
+                    return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img\\unknown.png"); 
             }
         }
         
