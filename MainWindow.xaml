@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:LIB"
         mc:Ignorable="d"
         Title="Paradise"
-        Height="600" Width="1196"
+        Height="880" Width="1520"
         MinHeight="500" MinWidth="800"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource WindowBackgroundBrush}">
@@ -343,7 +343,7 @@
                                 Background="{DynamicResource ButtonBackgroundBrush}"
                                 BorderBrush="{DynamicResource ButtonBorderBrush}"
                                 Foreground="{DynamicResource TextBrush}"
-                                Click="BackToLibrary_Click"
+                                Click="AutorisationButton_Click"
                                 Style="{StaticResource RoundedButtonStyle}"/>
                             <Button x:Name="RegistrationButton"
                                 Content="Авторизация"
@@ -354,7 +354,7 @@
                                 Background="{DynamicResource ButtonBackgroundBrush}"
                                 BorderBrush="{DynamicResource ButtonBorderBrush}"
                                 Foreground="{DynamicResource TextBrush}"
-                                Click="BackToLibrary_Click"
+                                Click="RegistrationButton_Click"
                                 Style="{StaticResource RoundedButtonStyle}"/>           
                         </StackPanel>
                         

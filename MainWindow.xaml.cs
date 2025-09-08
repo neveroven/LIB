@@ -944,14 +944,14 @@ namespace LIB
         {
             try
             {
-                // Пока что возвращаем сообщение о том, что Word не поддерживается
-                return "📝 Word файлы пока не поддерживаются для чтения.\n\n" +
-                       "Пожалуйста, используйте текстовые файлы (.txt) или RTF файлы (.rtf).\n\n" +
-                       "В будущем будет добавлена полная поддержка Word.";
+                // Читаем XML содержимое
+                string wordContent = File.ReadAllText(filePath, Encoding.UTF8);
+                return FormatTextContent(wordContent);
             }
-            catch
+            catch (Exception ex)
             {
-                return null;
+                return $"❌ Ошибка при чтении Word файла: {ex.Message}\n\n" +
+                       "Попробуйте проверить целостность файла.";
             }
         }
         
@@ -2491,6 +2491,16 @@ namespace LIB
                               MessageBoxButton.OK, 
                               MessageBoxImage.Information);
             }
+        }
+
+        private void AutorisationButton_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void RegistrationButton_Click(object sender, RoutedEventArgs e)
+        {
+
         }
     }
 }
