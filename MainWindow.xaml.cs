@@ -85,7 +85,7 @@ namespace LIB
     /// </summary>
     public partial class MainWindow : Window
     {
-        private bool isDarkTheme = true;
+        private bool isDarkTheme = false;
         private List<Book> books = new List<Book>();
         private readonly string booksFilePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "books.json");
         private readonly string readingProgressFilePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "reading_progress.json");
@@ -103,11 +103,11 @@ namespace LIB
         {
             InitializeComponent();
 
-            // Инициализация тёмной темы по умолчанию
-            this.Resources["WindowBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(30, 30, 30));
-            this.Resources["TextBrush"] = new SolidColorBrush(Colors.White);
-            this.Resources["ButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(64, 64, 64));
-            this.Resources["ButtonBorderBrush"] = new SolidColorBrush(Color.FromRgb(96, 96, 96));
+            //// Инициализация тёмной темы по умолчанию
+            //this.Resources["WindowBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(30, 30, 30));
+            //this.Resources["TextBrush"] = new SolidColorBrush(Colors.White);
+            //this.Resources["ButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(64, 64, 64));
+            //this.Resources["ButtonBorderBrush"] = new SolidColorBrush(Color.FromRgb(96, 96, 96));
 
             // Разворачиваем окно на весь экран при запуске
             this.WindowState = WindowState.Maximized;
@@ -150,8 +150,8 @@ namespace LIB
                 // Переключение на светлую тему
                 this.Resources["WindowBackgroundBrush"] = new SolidColorBrush(Colors.White);
                 this.Resources["TextBrush"] = new SolidColorBrush(Colors.Black);
-                this.Resources["ButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(240, 240, 240));
-                this.Resources["ButtonBorderBrush"] = new SolidColorBrush(Color.FromRgb(204, 204, 204));
+                this.Resources["ButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(255, 218, 185));
+                this.Resources["ButtonBorderBrush"] = new SolidColorBrush(Color.FromRgb(51, 51, 51));
                 
                 ThemeToggleButton.Content = "🌙 Тёмная тема";
                 isDarkTheme = false;
@@ -165,7 +165,7 @@ namespace LIB
                 this.Resources["WindowBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(30, 30, 30));
                 this.Resources["TextBrush"] = new SolidColorBrush(Colors.White);
                 this.Resources["ButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(64, 64, 64));
-                this.Resources["ButtonBorderBrush"] = new SolidColorBrush(Color.FromRgb(96, 96, 96));
+                this.Resources["ButtonBorderBrush"] = new SolidColorBrush(Color.FromRgb (130, 130,130));
                 
                 ThemeToggleButton.Content = "☀️ Светлая тема";
                 isDarkTheme = true;
@@ -182,8 +182,10 @@ namespace LIB
 
         private void LibraryTitle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
+            BooksButton.Visibility = Visibility.Visible;
+            NavigationButtons.Visibility = Visibility.Visible;
             // Скрываем все панели
-            
+            AutorisationPanel.Visibility = Visibility.Collapsed;
             BackToLibraryButton.Visibility = Visibility.Collapsed;
             BooksGridPanel.Visibility = Visibility.Collapsed;
             ReadingPanel.Visibility = Visibility.Collapsed;
@@ -373,7 +375,8 @@ namespace LIB
         /// </summary>
         private void ClearBooksButton_Click(object sender, RoutedEventArgs e)
         {
-
+            readingProgress.Clear();
+            SaveReadingProgress();
             books.Clear();
             SaveBooksToJson();
             UpdateBooksDisplay();
@@ -588,6 +591,7 @@ namespace LIB
         {
             if (sender is Button button && button.Tag is Book book)
             {
+                readingProgress.Remove(book.FilePath);
                 books.Remove(book);
                 SaveBooksToJson();
                 UpdateBooksDisplay();
@@ -613,14 +617,22 @@ namespace LIB
         /// </summary>
         private void ReadBookInline_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button button && button.Tag is Book book)
+            if ((sender is Button button && button.Tag is Book book) )
             {
                 ShowReadingPanel(book);
             }
+            
         }
-        
 
-        
+        private void ReadBookText_Click(object sender, RoutedEventArgs e)
+        {
+            if ((sender is TextBlock block && block.DataContext is Book book))
+            {
+                ShowReadingPanel(book);
+            }
+
+        }
+
         /// <summary>
         /// Читает выбранную книгу (кнопка в панели быстрых действий)
         /// </summary>
@@ -1933,7 +1945,7 @@ namespace LIB
                 case ".md":
                     return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img\\md.png");
                 case ".rtf":
-                    return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img\\rt.png");
+                    return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img\\rtf.png");
                 case ".xml":
                     return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img\\xml.png");
                 case ".pdf":

@@ -1,1 +1,18 @@
-[]
+[
+  {
+    "Title": "dd chain start",
+    "Author": "Не указан",
+    "FilePath": "C:\\Users\\User\\Documents\\Path of Building\\Builds\\dd chain start.xml",
+    "FileName": "dd chain start.xml",
+    "AddedDate": "2025-09-08T11:17:52.4027064+02:00",
+    "CoverImageSource": "C:\\Users\\User\\Documents\\GitHub\\LIB\\bin\\Debug\\net9.0-windows\\img\\xml.png"
+  },
+  {
+    "Title": "dd chain d5",
+    "Author": "Не указан",
+    "FilePath": "C:\\Users\\User\\Documents\\Path of Building\\Builds\\dd chain d5.xml",
+    "FileName": "dd chain d5.xml",
+    "AddedDate": "2025-09-08T14:00:10.5432403+02:00",
+    "CoverImageSource": "C:\\Users\\User\\Documents\\GitHub\\LIB\\bin\\Debug\\net9.0-windows\\img\\xml.png"
+  }
+]

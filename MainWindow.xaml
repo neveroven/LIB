@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:LIB"
         mc:Ignorable="d"
-        Title="LIB - Библиотека"
+        Title="Paradise"
         Height="600" Width="1196"
         MinHeight="500" MinWidth="800"
         WindowStartupLocation="CenterScreen"
@@ -13,10 +13,10 @@
     
     <Window.Resources>
         <!-- Светлая тема -->
-        <SolidColorBrush x:Key="WindowBackgroundBrush" Color="White"/>
+        <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#F2F2F2"/>
         <SolidColorBrush x:Key="TextBrush" Color="Black"/>
-        <SolidColorBrush x:Key="ButtonBackgroundBrush" Color="#F0F0F0"/>
-        <SolidColorBrush x:Key="ButtonBorderBrush" Color="#CCCCCC"/>
+        <SolidColorBrush x:Key="ButtonBackgroundBrush" Color="#FFDAB9"/>
+        <SolidColorBrush x:Key="ButtonBorderBrush" Color="#333333"/>
         
         <!-- Тёмная тема -->
         <SolidColorBrush x:Key="WindowBackgroundBrushDark" Color="#1E1E1E"/>
@@ -33,7 +33,9 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="5">
+                                CornerRadius="3"
+                                >
+                            
                             <ContentPresenter HorizontalAlignment="Center" 
                                             VerticalAlignment="Center"/>
                         </Border>
@@ -291,6 +293,7 @@
                             <Button x:Name="BackToLibraryButton"
                                     Content="← Вернуться к библиотеке"
                                     Height="35"
+                                    Width="180"
                                     Padding="15,8"
                                     Background="{DynamicResource ButtonBackgroundBrush}"
                                     BorderBrush="{DynamicResource ButtonBorderBrush}"
@@ -318,6 +321,46 @@
                 <Grid Grid.Row="1" Margin="20">
                     <!-- Авторизация/регистрация -->
                 <Grid x:Name="AutorisationPanel">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" 
+                            Background="{DynamicResource ButtonBackgroundBrush}" 
+                            BorderBrush="{DynamicResource ButtonBorderBrush}" 
+                            BorderThickness="1"
+                            CornerRadius="3"
+                            Padding="25"
+                            Margin="300,0,300,0">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Top" >
+                            <Button x:Name="AutorisationButton"
+                                    
+                                Content="Регистрация"
+                                Height="35"
+                                Width="270"
+                                Padding="15"
+                                Margin="10"
+                                Background="{DynamicResource ButtonBackgroundBrush}"
+                                BorderBrush="{DynamicResource ButtonBorderBrush}"
+                                Foreground="{DynamicResource TextBrush}"
+                                Click="BackToLibrary_Click"
+                                Style="{StaticResource RoundedButtonStyle}"/>
+                            <Button x:Name="RegistrationButton"
+                                Content="Авторизация"
+                                Height="35"
+                                Width="270"
+                                Padding="15"
+                                Margin="10"
+                                Background="{DynamicResource ButtonBackgroundBrush}"
+                                BorderBrush="{DynamicResource ButtonBorderBrush}"
+                                Foreground="{DynamicResource TextBrush}"
+                                Click="BackToLibrary_Click"
+                                Style="{StaticResource RoundedButtonStyle}"/>           
+                        </StackPanel>
+                        
+
+
+                    </Border>
                     
                 </Grid>
                 <!-- Приветственная секция (по умолчанию) -->
@@ -707,7 +750,8 @@
                                                                TextWrapping="Wrap"
                                                                TextAlignment="Center"
                                                                MaxHeight="40"
-                                                               Margin="0,0,0,5"/>
+                                                               Margin="0,0,0,5"
+                                                               MouseLeftButtonDown="ReadBookText_Click"/>
                                                     <TextBlock Text="{Binding Author}" 
                                                                FontSize="12" 
                                                                Foreground="{DynamicResource TextBrush}"
