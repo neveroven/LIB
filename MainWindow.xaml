@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:LIB"
         mc:Ignorable="d"
         Title="Paradise"
-        Height="880" Width="1520"
+        Height="600" Width="1196"
         MinHeight="500" MinWidth="800"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource WindowBackgroundBrush}">
@@ -325,21 +325,24 @@
                         <ColumnDefinition Width="*"/>
                         
                     </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="500"/>
+                    </Grid.RowDefinitions>
                     <Border Grid.Column="0" 
                             Background="{DynamicResource ButtonBackgroundBrush}" 
                             BorderBrush="{DynamicResource ButtonBorderBrush}" 
                             BorderThickness="1"
                             CornerRadius="3"
-                            Padding="25"
-                            Margin="300,0,300,0">
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Top" >
+                            Padding="15"
+                            Margin="300,200,300,200">
+                        <StackPanel  Orientation="Horizontal" VerticalAlignment="Top" >
                             <Button x:Name="AutorisationButton"
                                     
                                 Content="Регистрация"
                                 Height="35"
                                 Width="270"
                                 Padding="15"
-                                Margin="10"
+                                Margin="26,0,0,10"
                                 Background="{DynamicResource ButtonBackgroundBrush}"
                                 BorderBrush="{DynamicResource ButtonBorderBrush}"
                                 Foreground="{DynamicResource TextBrush}"
@@ -350,7 +353,7 @@
                                 Height="35"
                                 Width="270"
                                 Padding="15"
-                                Margin="10"
+                                Margin="20,0,30,10"
                                 Background="{DynamicResource ButtonBackgroundBrush}"
                                 BorderBrush="{DynamicResource ButtonBorderBrush}"
                                 Foreground="{DynamicResource TextBrush}"
