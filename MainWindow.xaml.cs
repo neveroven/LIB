@@ -65,7 +65,7 @@ namespace LIB
             FilePath = filePath;
             FileName = fileName;
             AddedDate = DateTime.Now;
-            CoverImageSource = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img\\unknown.png"); // По умолчанию обложка не задана
+            CoverImageSource = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img\\unknown.png"); 
             ProgressWidth = 0;
             ProgressText = "";
         }
@@ -86,6 +86,7 @@ namespace LIB
     public partial class MainWindow : Window
     {
         private bool isDarkTheme = false;
+
         private List<Book> books = new List<Book>();
         private readonly string booksFilePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "books.json");
         private readonly string readingProgressFilePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "reading_progress.json");

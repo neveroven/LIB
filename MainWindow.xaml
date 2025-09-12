@@ -235,7 +235,7 @@
                     <Separator Margin="0,20" Background="{DynamicResource ButtonBorderBrush}"/>
                     
                     <Button x:Name="ThemeToggleButton"
-                            Content="☀️ Светлая тема"
+                            Content="🌙 Тёмная тема"
                             Height="40"
                             Margin="0,5"
                             Background="{DynamicResource ButtonBackgroundBrush}"
