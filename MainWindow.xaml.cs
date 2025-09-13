@@ -193,6 +193,7 @@ namespace LIB
             
             // Показываем главную панель
             WelcomePanel.Visibility = Visibility.Visible;
+            UpdateBooksDisplay();
         }
 
         private void AddBookButton_Click(object sender, RoutedEventArgs e)
@@ -2049,9 +2050,9 @@ namespace LIB
             BackToLibraryButton.Visibility = Visibility.Collapsed;
             // Показываем панель с гридом книг
             BooksGridPanel.Visibility = Visibility.Visible;
-            
+
             // Обновляем отображение книг в гриде
-            UpdateBooksGridDisplay();
+            UpdateBooksDisplay();
         }
         
         /// <summary>
@@ -2371,8 +2372,9 @@ namespace LIB
                     {
                         readingProgress.Remove(book.FilePath);
                         SaveReadingProgress();
+                        UpdateBooksDisplay();
                         UpdateBooksGridDisplay();
-                        
+
                         MessageBox.Show($"Прогресс чтения книги '{book.Title}' сброшен.", 
                                       "Прогресс сброшен", 
                                       MessageBoxButton.OK, 
@@ -2502,6 +2504,28 @@ namespace LIB
         private void RegistrationButton_Click(object sender, RoutedEventArgs e)
         {
 
+        }
+        private void LoginSubmit_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+        private void RegisterSubmit_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+        private void GuestLogin_Click(object sender, RoutedEventArgs e)
+        {
+            BooksButton.Visibility = Visibility.Visible;
+            NavigationButtons.Visibility = Visibility.Visible;
+            // Скрываем все панели
+            AutorisationPanel.Visibility = Visibility.Collapsed;
+            BackToLibraryButton.Visibility = Visibility.Collapsed;
+            BooksGridPanel.Visibility = Visibility.Collapsed;
+            ReadingPanel.Visibility = Visibility.Collapsed;
+
+            // Показываем главную панель
+            WelcomePanel.Visibility = Visibility.Visible;
+            UpdateBooksDisplay();
         }
     }
 }

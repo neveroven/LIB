@@ -363,3 +363,5 @@ FodyWeavers.xsd
 *.fb2
 *.rtf
 *.txt
+books.json
+reading_progress.json

@@ -96,6 +96,66 @@
             </Setter>
         </Style>
         
+        
+        <!-- Стиль для переключателя режимов -->
+        <Style x:Key="ToggleButtonStyle" TargetType="Button">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Border"
+                                Background="Transparent"
+                                BorderBrush="Transparent"
+                                BorderThickness="0"
+                                CornerRadius="20">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#E0E0E0"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#D0D0D0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        <!-- Стиль для активной кнопки переключателя -->
+        <Style x:Key="ActiveToggleButtonStyle" TargetType="Button">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Border"
+                                Background="{DynamicResource ButtonBackgroundBrush}"
+                                BorderBrush="{DynamicResource ButtonBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="20">
+                            <Border.Effect>
+                                <DropShadowEffect Color="Black" 
+                                                BlurRadius="5" 
+                                                ShadowDepth="2" 
+                                                Opacity="0.2"/>
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#F0F0F0"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#E0E0E0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        
+        
         <!-- Стиль для кнопки выхода -->
         <Style x:Key="ExitButtonStyle" TargetType="Button">
             <Setter Property="Template">
@@ -323,48 +383,236 @@
                 <Grid x:Name="AutorisationPanel">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
-                        
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="500"/>
+                        <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
+                    
+                    <!-- Центральная панель авторизации -->
                     <Border Grid.Column="0" 
                             Background="{DynamicResource ButtonBackgroundBrush}" 
                             BorderBrush="{DynamicResource ButtonBorderBrush}" 
-                            BorderThickness="1"
-                            CornerRadius="3"
-                            Padding="15"
-                            Margin="300,200,300,200">
-                        <StackPanel  Orientation="Horizontal" VerticalAlignment="Top" >
-                            <Button x:Name="AutorisationButton"
-                                    
-                                Content="Регистрация"
-                                Height="35"
-                                Width="270"
-                                Padding="15"
-                                Margin="26,0,0,10"
-                                Background="{DynamicResource ButtonBackgroundBrush}"
-                                BorderBrush="{DynamicResource ButtonBorderBrush}"
-                                Foreground="{DynamicResource TextBrush}"
-                                Click="AutorisationButton_Click"
-                                Style="{StaticResource RoundedButtonStyle}"/>
-                            <Button x:Name="RegistrationButton"
-                                Content="Авторизация"
-                                Height="35"
-                                Width="270"
-                                Padding="15"
-                                Margin="20,0,30,10"
-                                Background="{DynamicResource ButtonBackgroundBrush}"
-                                BorderBrush="{DynamicResource ButtonBorderBrush}"
-                                Foreground="{DynamicResource TextBrush}"
-                                Click="RegistrationButton_Click"
-                                Style="{StaticResource RoundedButtonStyle}"/>           
-                        </StackPanel>
+                            BorderThickness="2"
+                            CornerRadius="15"
+                            Padding="30"
+                            Margin="250,150,250,150"
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Center">
+                        <Border.Effect>
+                            <DropShadowEffect Color="Black" 
+                                            BlurRadius="20" 
+                                            ShadowDepth="5" 
+                                            Opacity="0.3"/>
+                        </Border.Effect>
                         
-
-
+                        <Grid Width="500" Height="400">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            
+                            <!-- Заголовок -->
+                            <StackPanel Grid.Row="0" Margin="0,0,0,30">
+                                <TextBlock Text="🔐 Добро пожаловать!"
+                                           FontSize="32"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource TextBrush}"
+                                           Margin="0,0,0,10">
+                                    <TextBlock.Effect>
+                                        <DropShadowEffect Color="Black" 
+                                                        BlurRadius="3" 
+                                                        ShadowDepth="1" 
+                                                        Opacity="0.2"/>
+                                    </TextBlock.Effect>
+                                </TextBlock>
+                                <TextBlock Text="Войдите в систему или создайте новый аккаунт"
+                                           FontSize="16"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource TextBrush}"
+                                           Opacity="0.8"/>
+                            </StackPanel>
+                            
+                            <!-- Кнопки выбора -->
+                            <Grid Grid.Row="1" VerticalAlignment="Center">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                
+                                <!-- Переключатель режимов -->
+                                <Border Grid.Row="0" 
+                                        Background="{DynamicResource ButtonBorderBrush}" 
+                                        CornerRadius="25" 
+                                        Padding="5"
+                                        Margin="0,0,0,40"
+                                        HorizontalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button x:Name="AutorisationButton"
+                                                Content="Вход"
+                                                Height="45"
+                                                Width="120"
+                                                Background="Transparent"
+                                                BorderBrush="Transparent"
+                                                Foreground="{DynamicResource TextBrush}"
+                                                FontSize="16"
+                                                FontWeight="SemiBold"
+                                                Click="AutorisationButton_Click"
+                                                Style="{StaticResource ActiveToggleButtonStyle}"/>
+                                        <Button x:Name="RegistrationButton"
+                                                Content="Регистрация"
+                                                Height="45"
+                                                Width="120"
+                                                Background="Transparent"
+                                                BorderBrush="Transparent"
+                                                Foreground="{DynamicResource TextBrush}"
+                                                FontSize="16"
+                                                FontWeight="SemiBold"
+                                                Click="RegistrationButton_Click"
+                                                Style="{StaticResource ToggleButtonStyle}"/>
+                                    </StackPanel>
+                                </Border>
+                                
+                                <!-- Форма входа -->
+                                <StackPanel x:Name="LoginForm" Grid.Row="1" Margin="0,0,0,20">
+                                    <TextBlock Text="Вход в аккаунт"
+                                               FontSize="20"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"
+                                               Foreground="{DynamicResource TextBrush}"
+                                               Margin="0,0,0,25"/>
+                                    
+                                    <StackPanel>
+                                        <TextBlock Text="Логин:"
+                                                   FontSize="14"
+                                                   Foreground="{DynamicResource TextBrush}"
+                                                   Margin="0,0,0,8"/>
+                                        <TextBox x:Name="LoginTextBox"
+                                                 Height="40"
+                                                 Padding="5,6"
+                                                 FontSize="16"
+                                                 Background="White"
+                                                 BorderBrush="#CCCCCC"
+                                                 BorderThickness="2"
+                                                 Foreground="Black"
+                                                 Margin="0,0,0,15"/>
+                                        
+                                        <TextBlock Text="Пароль:"
+                                                   FontSize="14"
+                                                   Foreground="{DynamicResource TextBrush}"
+                                                   Margin="0,0,0,8"/>
+                                        <PasswordBox x:Name="PasswordTextBox"
+                                                     Height="40"
+                                                     Padding="5,6"
+                                                     FontSize="16"
+                                                     Background="White"
+                                                     BorderBrush="#CCCCCC"
+                                                     BorderThickness="2"
+                                                     Foreground="Black"
+                                                     Margin="0,0,0,25"/>
+                                        
+                                        <Button x:Name="LoginSubmitButton"
+                                                Content="Войти"
+                                                Height="45"
+                                                Background="{DynamicResource ButtonBackgroundBrush}"
+                                                BorderBrush="{DynamicResource ButtonBorderBrush}"
+                                                Foreground="{DynamicResource TextBrush}"
+                                                FontSize="16"
+                                                FontWeight="SemiBold"
+                                                Click="LoginSubmit_Click"
+                                                Style="{StaticResource RoundedButtonStyle}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                
+                                <!-- Форма регистрации -->
+                                <StackPanel x:Name="RegisterForm" Grid.Row="1" Margin="0,0,0,20" Visibility="Collapsed">
+                                    <TextBlock Text="Создание аккаунта"
+                                               FontSize="20"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"
+                                               Foreground="{DynamicResource TextBrush}"
+                                               Margin="0,0,0,25"/>
+                                    
+                                    <StackPanel>
+                                        <TextBlock Text="Логин:"
+                                                   FontSize="14"
+                                                   Foreground="{DynamicResource TextBrush}"
+                                                   Margin="0,0,0,8"/>
+                                        <TextBox x:Name="RegisterLoginTextBox"
+                                                 Height="40"
+                                                 Padding="15,10"
+                                                 FontSize="16"
+                                                 Background="White"
+                                                 BorderBrush="#CCCCCC"
+                                                 BorderThickness="2"
+                                                 Foreground="Black"
+                                                 Margin="0,0,0,15"/>
+                                        
+                                        <TextBlock Text="Пароль:"
+                                                   FontSize="14"
+                                                   Foreground="{DynamicResource TextBrush}"
+                                                   Margin="0,0,0,8"/>
+                                        <PasswordBox x:Name="RegisterPasswordTextBox"
+                                                     Height="40"
+                                                     Padding="15,10"
+                                                     FontSize="16"
+                                                     Background="White"
+                                                     BorderBrush="#CCCCCC"
+                                                     BorderThickness="2"
+                                                     Foreground="Black"
+                                                     Margin="0,0,0,15"/>
+                                        
+                                        <TextBlock Text="Подтвердите пароль:"
+                                                   FontSize="14"
+                                                   Foreground="{DynamicResource TextBrush}"
+                                                   Margin="0,0,0,8"/>
+                                        <PasswordBox x:Name="ConfirmPasswordTextBox"
+                                                     Height="40"
+                                                     Padding="15,10"
+                                                     FontSize="16"
+                                                     Background="White"
+                                                     BorderBrush="#CCCCCC"
+                                                     BorderThickness="2"
+                                                     Foreground="Black"
+                                                     Margin="0,0,0,25"/>
+                                        
+                                        <Button x:Name="RegisterSubmitButton"
+                                                Content="Зарегистрироваться"
+                                                Height="45"
+                                                Background="{DynamicResource ButtonBackgroundBrush}"
+                                                BorderBrush="{DynamicResource ButtonBorderBrush}"
+                                                Foreground="{DynamicResource TextBrush}"
+                                                FontSize="16"
+                                                FontWeight="SemiBold"
+                                                Click="RegisterSubmit_Click"
+                                                Style="{StaticResource RoundedButtonStyle}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                            
+                            <!-- Дополнительная информация -->
+                            <StackPanel Grid.Row="2" HorizontalAlignment="Center">
+                                <TextBlock Text="Или войдите как гость"
+                                           FontSize="14"
+                                           Foreground="{DynamicResource TextBrush}"
+                                           Opacity="0.7"
+                                           Margin="18,0,0,10"/>
+                                <Button x:Name="GuestLoginButton"
+                                        Content="Продолжить как гость"
+                                        Height="35"
+                                        Width="180"
+                                        Background="Transparent"
+                                        BorderBrush="{DynamicResource ButtonBorderBrush}"
+                                        BorderThickness="1"
+                                        Foreground="{DynamicResource TextBrush}"
+                                        FontSize="14"
+                                        Click="GuestLogin_Click"
+                                        Style="{StaticResource RoundedButtonStyle}"/>
+                            </StackPanel>
+                        </Grid>
                     </Border>
-                    
                 </Grid>
                 <!-- Приветственная секция (по умолчанию) -->
                 <Grid x:Name="WelcomePanel" Visibility="Collapsed">
