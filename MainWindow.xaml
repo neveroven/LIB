@@ -378,7 +378,7 @@
                 </Border>
                 
                 <!-- Основной контент -->
-                <Grid Grid.Row="1" Margin="20">
+                <Grid Grid.Row="1" Margin="10">
                     <!-- Авторизация/регистрация -->
                 <Grid x:Name="AutorisationPanel">
                     <Grid.ColumnDefinitions>
@@ -394,8 +394,7 @@
                             BorderBrush="{DynamicResource ButtonBorderBrush}" 
                             BorderThickness="2"
                             CornerRadius="15"
-                            Padding="30"
-                            Margin="250,150,250,150"
+                            Padding="40"
                             VerticalAlignment="Center"
                             HorizontalAlignment="Center">
                         <Border.Effect>
@@ -405,15 +404,15 @@
                                             Opacity="0.3"/>
                         </Border.Effect>
                         
-                        <Grid Width="500" Height="400">
+                        <Grid Width="600" Height="700">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*" MinHeight="300"/>
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
                             
                             <!-- Заголовок -->
-                            <StackPanel Grid.Row="0" Margin="0,0,0,30">
+                            <StackPanel Grid.Row="0" Margin="0,0,0,10">
                                 <TextBlock Text="🔐 Добро пожаловать!"
                                            FontSize="32"
                                            FontWeight="Bold"
@@ -435,11 +434,11 @@
                             </StackPanel>
                             
                             <!-- Кнопки выбора -->
-                            <Grid Grid.Row="1" VerticalAlignment="Center">
+                            <Grid Grid.Row="1" VerticalAlignment="Top">
                                 <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="auto"/>
+                                    <RowDefinition Height="auto"/>
                                 </Grid.RowDefinitions>
                                 
                                 <!-- Переключатель режимов -->
@@ -447,7 +446,8 @@
                                         Background="{DynamicResource ButtonBorderBrush}" 
                                         CornerRadius="25" 
                                         Padding="5"
-                                        Margin="0,0,0,40"
+                                        Margin="0,0,0,10"
+                                        
                                         HorizontalAlignment="Center">
                                     <StackPanel Orientation="Horizontal">
                                         <Button x:Name="AutorisationButton"
@@ -460,7 +460,8 @@
                                                 FontSize="16"
                                                 FontWeight="SemiBold"
                                                 Click="AutorisationButton_Click"
-                                                Style="{StaticResource ActiveToggleButtonStyle}"/>
+                                                Style="{StaticResource ActiveToggleButtonStyle}"
+                                                VerticalAlignment="Bottom"/>
                                         <Button x:Name="RegistrationButton"
                                                 Content="Регистрация"
                                                 Height="45"
@@ -476,7 +477,7 @@
                                 </Border>
                                 
                                 <!-- Форма входа -->
-                                <StackPanel x:Name="LoginForm" Grid.Row="1" Margin="0,0,0,20">
+                                <StackPanel x:Name="LoginForm" Grid.Row="1" Margin="0,0,0,0">
                                     <TextBlock Text="Вход в аккаунт"
                                                FontSize="20"
                                                FontWeight="SemiBold"
@@ -522,12 +523,13 @@
                                                 FontSize="16"
                                                 FontWeight="SemiBold"
                                                 Click="LoginSubmit_Click"
+                                                VerticalAlignment="Bottom"
                                                 Style="{StaticResource RoundedButtonStyle}"/>
                                     </StackPanel>
                                 </StackPanel>
                                 
                                 <!-- Форма регистрации -->
-                                <StackPanel x:Name="RegisterForm" Grid.Row="1" Margin="0,0,0,20" Visibility="Collapsed">
+                                <StackPanel x:Name="RegisterForm" Grid.Row="1" Margin="0,0,0,0" Visibility="Collapsed">
                                     <TextBlock Text="Создание аккаунта"
                                                FontSize="20"
                                                FontWeight="SemiBold"
@@ -593,7 +595,8 @@
                             </Grid>
                             
                             <!-- Дополнительная информация -->
-                            <StackPanel Grid.Row="2" HorizontalAlignment="Center">
+                            <StackPanel Grid.Row="2" HorizontalAlignment="Center" Margin="-50">
+                                
                                 <TextBlock Text="Или войдите как гость"
                                            FontSize="14"
                                            Foreground="{DynamicResource TextBrush}"

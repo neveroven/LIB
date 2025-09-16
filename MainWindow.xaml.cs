@@ -86,7 +86,7 @@ namespace LIB
     public partial class MainWindow : Window
     {
         private bool isDarkTheme = false;
-
+        private bool isLogin = false;
         private List<Book> books = new List<Book>();
         private readonly string booksFilePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "books.json");
         private readonly string readingProgressFilePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "reading_progress.json");
@@ -183,18 +183,21 @@ namespace LIB
 
         private void LibraryTitle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            BooksButton.Visibility = Visibility.Visible;
-            NavigationButtons.Visibility = Visibility.Visible;
-            // Скрываем все панели
-            AutorisationPanel.Visibility = Visibility.Collapsed;
-            BackToLibraryButton.Visibility = Visibility.Collapsed;
-            BooksGridPanel.Visibility = Visibility.Collapsed;
-            ReadingPanel.Visibility = Visibility.Collapsed;
-            
-            // Показываем главную панель
-            WelcomePanel.Visibility = Visibility.Visible;
-            UpdateBooksDisplay();
-        }
+            if (isLogin)
+            {
+                BooksButton.Visibility = Visibility.Visible;
+                NavigationButtons.Visibility = Visibility.Visible;
+                // Скрываем все панели
+                AutorisationPanel.Visibility = Visibility.Collapsed;
+                BackToLibraryButton.Visibility = Visibility.Collapsed;
+                BooksGridPanel.Visibility = Visibility.Collapsed;
+                ReadingPanel.Visibility = Visibility.Collapsed;
+
+                // Показываем главную панель
+                WelcomePanel.Visibility = Visibility.Visible;
+                UpdateBooksDisplay();
+            }
+            }
 
         private void AddBookButton_Click(object sender, RoutedEventArgs e)
         {
@@ -2498,19 +2501,26 @@ namespace LIB
 
         private void AutorisationButton_Click(object sender, RoutedEventArgs e)
         {
-
+            LoginForm.Visibility = Visibility.Visible;
+            RegisterForm.Visibility = Visibility.Collapsed;
+            AutorisationButton.Style = this.Resources["ActiveToggleButtonStyle"] as Style;
+            RegistrationButton.Style = this.Resources["ToggleButtonStyle"] as Style;
         }
 
         private void RegistrationButton_Click(object sender, RoutedEventArgs e)
         {
-
+            LoginForm.Visibility = Visibility.Collapsed;
+            RegisterForm.Visibility = Visibility.Visible;
+            RegistrationButton.Style = this.Resources["ActiveToggleButtonStyle"] as Style;
+            AutorisationButton.Style = this.Resources["ToggleButtonStyle"] as Style;
         }
         private void LoginSubmit_Click(object sender, RoutedEventArgs e)
         {
-
+            isLogin = true;
         }
         private void RegisterSubmit_Click(object sender, RoutedEventArgs e)
         {
+            isLogin = true;
 
         }
         private void GuestLogin_Click(object sender, RoutedEventArgs e)
@@ -2526,6 +2536,8 @@ namespace LIB
             // Показываем главную панель
             WelcomePanel.Visibility = Visibility.Visible;
             UpdateBooksDisplay();
+            isLogin = true;
+
         }
     }
 }
