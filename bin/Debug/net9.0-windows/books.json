@@ -1,26 +1,24 @@
 [
   {
-    "Title": "dd chain start",
+    "BookID": 0,
+    "Title": "Легендарный_Лунный_Скульптор_Том_32",
     "Author": "Не указан",
-    "FilePath": "C:\\Users\\User\\Documents\\Path of Building\\Builds\\dd chain start.xml",
-    "FileName": "dd chain start.xml",
-    "AddedDate": "2025-09-08T11:17:52.4027064+02:00",
-    "CoverImageSource": "C:\\Users\\User\\Documents\\GitHub\\LIB\\bin\\Debug\\net9.0-windows\\img\\xml.png"
+    "FilePath": "C:\\Users\\oven0\\Downloads\\Telegram Desktop\\Легендарный_Лунный_Скульптор_Том_32.fb2",
+    "FileName": "Легендарный_Лунный_Скульптор_Том_32.fb2",
+    "AddedDate": "2025-09-17T20:50:54.9882079+02:00",
+    "CoverImageSource": "C:\\Users\\oven0\\OneDrive\\Рабочий стол\\projects\\LIB\\bin\\Debug\\net9.0-windows\\img\\fb2.png",
+    "ProgressWidth": 23.93617021276596,
+    "ProgressText": "13% (25/188)"
   },
   {
-    "Title": "dd chain d5",
+    "BookID": 1,
+    "Title": "Легендарный_Лунный_Скульптор_Том_16",
     "Author": "Не указан",
-    "FilePath": "C:\\Users\\User\\Documents\\Path of Building\\Builds\\dd chain d5.xml",
-    "FileName": "dd chain d5.xml",
-    "AddedDate": "2025-09-08T14:00:10.5432403+02:00",
-    "CoverImageSource": "C:\\Users\\User\\Documents\\GitHub\\LIB\\bin\\Debug\\net9.0-windows\\img\\xml.png"
-  },
-  {
-    "Title": "Задачи (1)",
-    "Author": "Не указан",
-    "FilePath": "C:\\Users\\User\\Downloads\\Задачи (1).docx",
-    "FileName": "Задачи (1).docx",
-    "AddedDate": "2025-09-12T09:01:00.9486694+02:00",
-    "CoverImageSource": "C:\\Users\\User\\Documents\\GitHub\\LIB\\bin\\Debug\\net9.0-windows\\img\\unknown.png"
+    "FilePath": "C:\\Users\\oven0\\Downloads\\Telegram Desktop\\Легендарный_Лунный_Скульптор_Том_16.fb2",
+    "FileName": "Легендарный_Лунный_Скульптор_Том_16.fb2",
+    "AddedDate": "2025-09-17T21:04:45.6802691+02:00",
+    "CoverImageSource": "C:\\Users\\oven0\\OneDrive\\Рабочий стол\\projects\\LIB\\bin\\Debug\\net9.0-windows\\img\\fb2.png",
+    "ProgressWidth": 0,
+    "ProgressText": ""
   }
 ]
