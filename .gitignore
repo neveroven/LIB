@@ -368,3 +368,7 @@ reading_progress.json
 LIB.dll
 LIB.exe
 LIB.pdb
+bin/Debug/net9.0-windows/reading_progress.json
+bin/Debug/net9.0-windows/LIB.pdb
+bin/Debug/net9.0-windows/LIB.exe
+bin/Debug/net9.0-windows/LIB.dll
