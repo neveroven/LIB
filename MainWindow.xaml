@@ -1197,7 +1197,7 @@
                                 BorderBrush="{DynamicResource ButtonBorderBrush}" 
                                 BorderThickness="1"
                                 CornerRadius="8"
-                                Padding="30">
+                                Padding="20,10,20,0">
                             <TextBlock x:Name="BookContentText"
                                        Text="Здесь будет отображаться содержимое книги..."
                                        FontSize="18"

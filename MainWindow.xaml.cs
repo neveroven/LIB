@@ -18,9 +18,7 @@ using UglyToad.PdfPig.Content;
 
 namespace LIB
 {
-    /// <summary>
     /// Класс для хранения прогресса чтения
-    /// </summary>
     public class ReadingProgress
     {
         public string FilePath { get; set; }
@@ -39,27 +37,23 @@ namespace LIB
         }
     }
 
-    /// <summary>
     /// Класс для представления книги
-    /// </summary>
+
     public class Book
     {
+        public int BookID{ get; set; }
         public string Title { get; set; }
         public string Author { get; set; }
         public string FilePath { get; set; }
         public string FileName { get; set; }
         public DateTime AddedDate { get; set; }
-        public string CoverImageSource { get; set; } // Путь к обложке книги
-        
-        // Свойства для отображения прогресса (не сохраняются в JSON)
-        [System.Text.Json.Serialization.JsonIgnore]
-        public double ProgressWidth { get; set; } // Ширина прогресс-бара в пикселях
-        
-        [System.Text.Json.Serialization.JsonIgnore]
-        public string ProgressText { get; set; } // Текст прогресса
+        public string CoverImageSource { get; set; } 
+        public double ProgressWidth { get; set; } 
+        public string ProgressText { get; set; } 
 
-        public Book(string title, string author, string filePath, string fileName)
+        public Book(int bookid,string title, string author, string filePath, string fileName)
         {
+            BookID = bookid;
             Title = title;
             Author = author;
             FilePath = filePath;
@@ -80,17 +74,22 @@ namespace LIB
         }
     }
 
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
         private bool isDarkTheme = false;
         private bool isLogin = false;
         private List<Book> books = new List<Book>();
+        private int num_index = -1;
         private readonly string booksFilePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "books.json");
         private readonly string readingProgressFilePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "reading_progress.json");
-        private string currentXmlContent = ""; // Для хранения исходного XML
+        private string currentXmlContent = ""; 
+        private void index_found() 
+        { 
+            if (num_index == -1|| books.Count==0) 
+                num_index = 0; 
+            else  
+                num_index = books[books.Count-1].BookID + 1; 
+        }
         
         // Система страниц
         private List<string> bookPages = new List<string>();
@@ -102,6 +101,7 @@ namespace LIB
 
         public MainWindow()
         {
+            index_found();
             InitializeComponent();
 
             //// Инициализация тёмной темы по умолчанию
@@ -110,7 +110,6 @@ namespace LIB
             //this.Resources["ButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(64, 64, 64));
             //this.Resources["ButtonBorderBrush"] = new SolidColorBrush(Color.FromRgb(96, 96, 96));
 
-            // Разворачиваем окно на весь экран при запуске
             this.WindowState = WindowState.Maximized;
             this.WindowStyle = WindowStyle.None;
             this.ResizeMode = ResizeMode.NoResize;
@@ -156,8 +155,6 @@ namespace LIB
                 
                 ThemeToggleButton.Content = "🌙 Тёмная тема";
                 isDarkTheme = false;
-                
-                // Принудительное обновление UI
                 this.InvalidateVisual();
             }
             else
@@ -170,8 +167,6 @@ namespace LIB
                 
                 ThemeToggleButton.Content = "☀️ Светлая тема";
                 isDarkTheme = true;
-                
-                // Принудительное обновление UI
                 this.InvalidateVisual();
             }
         }
@@ -187,13 +182,10 @@ namespace LIB
             {
                 BooksButton.Visibility = Visibility.Visible;
                 NavigationButtons.Visibility = Visibility.Visible;
-                // Скрываем все панели
                 AutorisationPanel.Visibility = Visibility.Collapsed;
                 BackToLibraryButton.Visibility = Visibility.Collapsed;
                 BooksGridPanel.Visibility = Visibility.Collapsed;
                 ReadingPanel.Visibility = Visibility.Collapsed;
-
-                // Показываем главную панель
                 WelcomePanel.Visibility = Visibility.Visible;
                 UpdateBooksDisplay();
             }
@@ -203,6 +195,7 @@ namespace LIB
         {
             try
             {
+                index_found();
                 // Создаём диалог выбора файла
                 OpenFileDialog openFileDialog = new OpenFileDialog();
                 openFileDialog.Title = "Выберите книгу для добавления";
@@ -216,24 +209,18 @@ namespace LIB
                     string filePath = openFileDialog.FileName;
                     string fileName = System.IO.Path.GetFileName(filePath);
                     
-                    // Убираем расширение файла для названия книги
                     string title = System.IO.Path.GetFileNameWithoutExtension(filePath);
                     
-                    // Автор по умолчанию
                     string author = "Не указан";
 
-                    // Создаём новую книгу и добавляем в список
-                    Book newBook = new Book(title, author, filePath, fileName);
-                    
-                    // Устанавливаем заглушку обложки
+                    Book newBook = new Book(num_index,title, author, filePath, fileName);
+
                     newBook.CoverImageSource = GetCoverPlaceholder(filePath);
                     
                     books.Add(newBook);
 
-                    // Сохраняем книги в JSON файл
                     SaveBooksToJson();
 
-                    // Обновляем отображение
                     UpdateBooksDisplay();
                 }
             }
@@ -257,7 +244,6 @@ namespace LIB
             
             if (books.Count > 0)
             {
-                // Скрываем текст "Книги ещё не добавлены"
                 NoBooksText.Visibility = Visibility.Collapsed;
                 
                 // Показываем последнюю добавленную книгу
@@ -279,9 +265,8 @@ namespace LIB
             }
         }
 
-        /// <summary>
         /// Загружает книги из JSON файла
-        /// </summary>
+        
         private void LoadBooksFromJson()
         {
             try
@@ -297,14 +282,12 @@ namespace LIB
             }
             catch (Exception ex)
             {
-                // Тихо обрабатываем ошибку, создаем пустой список
                 books = new List<Book>();
             }
         }
 
-        /// <summary>
         /// Загружает прогресс чтения из JSON файла
-        /// </summary>
+
         private void LoadReadingProgress()
         {
             try
@@ -326,14 +309,12 @@ namespace LIB
             }
             catch (Exception ex)
             {
-                // Тихо обрабатываем ошибку, создаем пустой словарь
                 readingProgress = new Dictionary<string, ReadingProgress>();
             }
         }
         
-        /// <summary>
         /// Сохраняет прогресс чтения в JSON файл
-        /// </summary>
+
         private void SaveReadingProgress()
         {
             try
@@ -348,14 +329,11 @@ namespace LIB
                 File.WriteAllText(readingProgressFilePath, jsonContent);
             }
             catch (Exception ex)
-            {
-                // Тихо обрабатываем ошибку
-            }
+            {}
         }
         
-        /// <summary>
         /// Сохраняет книги в JSON файл
-        /// </summary>
+
         private void SaveBooksToJson()
         {
             try
@@ -370,14 +348,11 @@ namespace LIB
                 File.WriteAllText(booksFilePath, jsonContent);
             }
             catch (Exception ex)
-            {
-                // Тихо обрабатываем ошибку
-            }
+            {}
         }
 
-        /// <summary>
         /// Очищает список книг
-        /// </summary>
+
         private void ClearBooksButton_Click(object sender, RoutedEventArgs e)
         {
             readingProgress.Clear();
@@ -387,9 +362,8 @@ namespace LIB
             UpdateBooksDisplay();
         }
 
-        /// <summary>
         /// Двойной клик по книге - открывает панель чтения
-        /// </summary>
+
         private void BooksListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
             if (BooksListBox.SelectedItem is Book selectedBook)
@@ -398,9 +372,8 @@ namespace LIB
             }
         }
 
-        /// <summary>
         /// Открывает файл книги
-        /// </summary>
+
         private void OpenBookFile_Click(object sender, RoutedEventArgs e)
         {
             if (BooksListBox.SelectedItem is Book selectedBook)
@@ -409,9 +382,8 @@ namespace LIB
             }
         }
 
-        /// <summary>
         /// Удаляет выбранную книгу
-        /// </summary>
+
         private void DeleteBook_Click(object sender, RoutedEventArgs e)
         {
             if (BooksListBox.SelectedItem is Book selectedBook)
@@ -422,9 +394,8 @@ namespace LIB
             }
         }
 
-        /// <summary>
         /// Показывает информацию о книге
-        /// </summary>
+
         private void ShowBookInfo_Click(object sender, RoutedEventArgs e)
         {
             if (BooksListBox.SelectedItem is Book selectedBook)
@@ -440,9 +411,8 @@ namespace LIB
             }
         }
 
-        /// <summary>
         /// Открывает файл книги в системе
-        /// </summary>
+
         private void OpenBookFile(Book book)
         {
             try
@@ -457,14 +427,11 @@ namespace LIB
                 }
             }
             catch (Exception ex)
-            {
-                // Тихо обрабатываем ошибку
-            }
+            {}
         }
 
-        /// <summary>
         /// Изменяет название книги (кнопка в списке)
-        /// </summary>
+
         private void EditBookTitle_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button button && button.Tag is Book book)
@@ -589,9 +556,8 @@ namespace LIB
             }
         }
 
-        /// <summary>
         /// Удаляет книгу (кнопка в списке)
-        /// </summary>
+
         private void DeleteBookInline_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button button && button.Tag is Book book)
@@ -603,9 +569,8 @@ namespace LIB
             }
         }
         
-        /// <summary>
         /// Открывает панель чтения для выбранной книги
-        /// </summary>
+
         private void ReadBook_Click(object sender, RoutedEventArgs e)
         {
             if (sender is MenuItem menuItem && menuItem.Parent is ContextMenu contextMenu)
@@ -617,9 +582,8 @@ namespace LIB
             }
         }
         
-        /// <summary>
         /// Открывает панель чтения для книги (кнопка в списке)
-        /// </summary>
+
         private void ReadBookInline_Click(object sender, RoutedEventArgs e)
         {
             if ((sender is Button button && button.Tag is Book book) )
@@ -628,7 +592,7 @@ namespace LIB
             }
             
         }
-
+        /// Открывает панель чтения для книги (Нажатие на название книги)
         private void ReadBookText_Click(object sender, RoutedEventArgs e)
         {
             if ((sender is TextBlock block && block.DataContext is Book book))
@@ -638,9 +602,8 @@ namespace LIB
 
         }
 
-        /// <summary>
         /// Читает выбранную книгу (кнопка в панели быстрых действий)
-        /// </summary>
+
         private void ReadSelectedBook_Click(object sender, RoutedEventArgs e)
         {
             if (BooksListBox.SelectedItem is Book selectedBook)
@@ -656,25 +619,16 @@ namespace LIB
             }
         }
         
-        /// <summary>
         /// Показывает панель чтения для выбранной книги
-        /// </summary>
         private void ShowReadingPanel(Book book)
         {
-            // Скрываем все панели
             WelcomePanel.Visibility = Visibility.Collapsed;
             BooksGridPanel.Visibility = Visibility.Collapsed;
-            
-            // Показываем панель чтения
             ReadingPanel.Visibility = Visibility.Visible;
-            
-            // Показываем кнопку возврата
             BackToLibraryButton.Visibility = Visibility.Visible;
-            
-            // Сохраняем текущую книгу
+
             currentBook = book;
             
-            // Устанавливаем информацию о книге
             ReadingBookTitle.Text = book.Title;
             ReadingBookAuthor.Text = book.Author;
             
@@ -690,18 +644,15 @@ namespace LIB
             PageText.Text = "Страница 1 из 1";
             ReadingProgressBar.Value = 0;
             
-            // Инициализируем систему страниц
-            // Обработчик прокрутки больше не нужен, так как используем страницы
         }
         
-        /// <summary>
         /// Показывает содержимое книги с разбивкой на страницы
-        /// </summary>
+
         private async void ShowBookContentPlaceholder(Book book)
         {
             try
             {
-                // Показываем статус загрузки
+
                 StatusText.Text = "Загрузка книги...";
                 
                 // Пытаемся прочитать содержимое файла
@@ -724,7 +675,6 @@ namespace LIB
                     
                     StatusText.Text = "Книга успешно загружена. Используйте стрелки ← → для навигации";
                     
-                    // Прогресс будет загружен в LoadBookProgress
                 }
                 else
                 {
@@ -737,9 +687,8 @@ namespace LIB
             }
         }
         
-        /// <summary>
         /// Читает содержимое файла книги
-        /// </summary>
+
         private async Task<string> ReadBookContentAsync(string filePath)
         {
             if (!File.Exists(filePath))
@@ -767,13 +716,12 @@ namespace LIB
                 case ".docx":
                     return ReadWordFile(filePath);
                 default:
-                    return ReadTextFile(filePath); // Пробуем как текстовый
+                    return ReadTextFile(filePath); 
             }
         }
-        
-        /// <summary>
+
         /// Читает содержимое файла книги (синхронная версия для совместимости)
-        /// </summary>
+
         private string ReadBookContent(string filePath)
         {
             if (!File.Exists(filePath))
@@ -801,18 +749,16 @@ namespace LIB
                 case ".docx":
                     return ReadWordFile(filePath);
                 default:
-                    return ReadTextFile(filePath); // Пробуем как текстовый
+                    return ReadTextFile(filePath);
             }
         }
         
-        /// <summary>
         /// Читает текстовый файл
-        /// </summary>
+
         private string ReadTextFile(string filePath)
         {
             try
             {
-                // Пробуем разные кодировки
                 string[] encodings = { "UTF-8", "Windows-1251", "UTF-16", "ASCII" };
                 
                 foreach (string encodingName in encodings)
@@ -821,8 +767,6 @@ namespace LIB
                     {
                         Encoding encoding = Encoding.GetEncoding(encodingName);
                         string content = File.ReadAllText(filePath, encoding);
-                        
-                        // Проверяем, что файл действительно текстовый
                         if (IsTextContent(content))
                         {
                             return FormatTextContent(content);
@@ -833,8 +777,6 @@ namespace LIB
                         continue;
                     }
                 }
-                
-                // Если не удалось прочитать как текст, возвращаем null
                 return null;
             }
             catch
@@ -843,9 +785,8 @@ namespace LIB
             }
         }
         
-        /// <summary>
         /// Читает RTF файл
-        /// </summary>
+        
         private string ReadRtfFile(string filePath)
         {
             try
@@ -860,17 +801,15 @@ namespace LIB
             }
         }
         
-        /// <summary>
         /// Читает PDF файл с полной поддержкой (асинхронно для больших файлов)
-        /// </summary>
+
         private async Task<string> ReadPdfFileAsync(string filePath)
         {
             return await Task.Run(() => ReadPdfFile(filePath));
         }
         
-        /// <summary>
         /// Читает PDF файл с полной поддержкой
-        /// </summary>
+
         private string ReadPdfFile(string filePath)
         {
             try
@@ -899,10 +838,6 @@ namespace LIB
                     foreach (UglyToad.PdfPig.Content.Page page in document.GetPages())
                     {
                         pageCount++;
-                        
-                        // Убираем отладочную информацию о прогрессе
-                        
-                        // Убираем заголовки страниц для чистого чтения
                         
                         // Извлекаем текст со страницы
                         string pageText = page.Text;
@@ -942,14 +877,12 @@ namespace LIB
             }
         }
         
-        /// <summary>
         /// Читает Word файл (базовая поддержка)
-        /// </summary>
+
         private string ReadWordFile(string filePath)
         {
             try
             {
-                // Читаем XML содержимое
                 string wordContent = File.ReadAllText(filePath, Encoding.UTF8);
                 return FormatTextContent(wordContent);
             }
@@ -960,9 +893,8 @@ namespace LIB
             }
         }
         
-        /// <summary>
         /// Читает FictionBook (.fb2) файл
-        /// </summary>
+
         private string ReadFictionBookFile(string filePath)
         {
             try
@@ -979,9 +911,8 @@ namespace LIB
             }
         }
         
-        /// <summary>
         /// Читает XML файл
-        /// </summary>
+
         private string ReadXmlFile(string filePath)
         {
             try
@@ -1007,9 +938,8 @@ namespace LIB
             }
         }
         
-        /// <summary>
         /// Парсит FictionBook XML и форматирует для чтения
-        /// </summary>
+
         private string ParseFictionBookXml(string xmlContent)
         {
             try
@@ -1112,7 +1042,7 @@ namespace LIB
                             string? text = pNode.InnerText?.Trim();
                             if (!string.IsNullOrEmpty(text))
                             {
-                                result += $"{text}\n\n";
+                                result += $"{text}\n";
                             }
                         }
                     }
@@ -1127,7 +1057,7 @@ namespace LIB
                                 string? text = textNode.Value?.Trim();
                                 if (!string.IsNullOrEmpty(text) && text.Length > 10)
                                 {
-                                    result += $"{text}\n\n";
+                                    result += $"{text}\n";
                                 }
                             }
                         }
@@ -1156,9 +1086,8 @@ namespace LIB
             }
         }
         
-        /// <summary>
         /// Парсит обычный XML файл
-        /// </summary>
+
         private string ParseGenericXml(string xmlContent)
         {
             try
@@ -1186,9 +1115,8 @@ namespace LIB
             }
         }
         
-        /// <summary>
         /// Извлекает значение из XML по XPath
-        /// </summary>
+
         private string ExtractXmlValue(System.Xml.XmlDocument xmlDoc, string xpath)
         {
             try
@@ -1218,9 +1146,8 @@ namespace LIB
             }
         }
         
-        /// <summary>
         /// Форматирует аннотацию для чтения
-        /// </summary>
+
         private string FormatAnnotation(string annotation)
         {
             if (string.IsNullOrEmpty(annotation))
@@ -1246,9 +1173,8 @@ namespace LIB
             return string.Join("\n\n", result);
         }
         
-        /// <summary>
         /// Парсит содержимое body элемента FictionBook
-        /// </summary>
+
         private string ParseBodyContent(System.Xml.XmlNode bodyNode)
         {
             string result = "";
@@ -1287,9 +1213,8 @@ namespace LIB
             return result;
         }
         
-        /// <summary>
         /// Парсит section элемент FictionBook
-        /// </summary>
+
         private string ParseSection(System.Xml.XmlNode sectionNode)
         {
             string result = "";
@@ -1332,9 +1257,8 @@ namespace LIB
             return result;
         }
         
-        /// <summary>
         /// Форматирует структуру XML для отображения
-        /// </summary>
+
         private string FormatXmlStructure(System.Xml.XmlNode node, int depth)
         {
             if (node == null) return "";
@@ -1378,9 +1302,8 @@ namespace LIB
             return result;
         }
         
-        /// <summary>
         /// Проверяет, является ли содержимое текстовым
-        /// </summary>
+
         private bool IsTextContent(string content)
         {
             if (string.IsNullOrEmpty(content))
@@ -1396,9 +1319,8 @@ namespace LIB
             return ratio > 0.7; // Если больше 70% символов - печатные, считаем текстом
         }
         
-        /// <summary>
         /// Форматирует текстовое содержимое для чтения
-        /// </summary>
+
         private string FormatTextContent(string content)
         {
             if (string.IsNullOrEmpty(content))
@@ -1434,10 +1356,9 @@ namespace LIB
             
             return content;
         }
-        
-        /// <summary>
+
         /// Форматирует размер файла в читаемый вид
-        /// </summary>
+
         private string FormatFileSize(long bytes)
         {
             string[] sizes = { "B", "KB", "MB", "GB", "TB" };
@@ -1450,10 +1371,9 @@ namespace LIB
             }
             return $"{len:0.##} {sizes[order]}";
         }
-        
-        /// <summary>
+
         /// Извлекает базовую информацию из PDF файла
-        /// </summary>
+
         private string ExtractBasicPdfInfo(string filePath)
         {
             try
@@ -1529,9 +1449,8 @@ namespace LIB
             }
         }
         
-        /// <summary>
         /// Очищает и форматирует текст из PDF
-        /// </summary>
+
         private string CleanPdfText(string pdfText)
         {
             if (string.IsNullOrEmpty(pdfText))
@@ -1572,9 +1491,8 @@ namespace LIB
             return pdfText;
         }
         
-        /// <summary>
         /// Форматирует текст абзаца для правильного отображения
-        /// </summary>
+
         private string FormatParagraphText(string text)
         {
             if (string.IsNullOrEmpty(text))
@@ -1594,10 +1512,9 @@ namespace LIB
             
             return text.Trim();
         }
-        
-        /// <summary>
+
         /// Очищает RTF содержимое от разметки
-        /// </summary>
+
         private string CleanRtfContent(string rtfContent)
         {
             if (string.IsNullOrEmpty(rtfContent))
@@ -1632,10 +1549,9 @@ namespace LIB
             
             return cleaned.Trim();
         }
-        
-        /// <summary>
+
         /// Показывает содержимое с ошибкой
-        /// </summary>
+
         private void ShowErrorContent(Book book, string errorMessage = null)
         {
             string errorText = $"📚 {book.Title}\n\n" +
@@ -1664,19 +1580,17 @@ namespace LIB
             BookContentText.Text = errorText;
             StatusText.Text = "Ошибка при чтении файла";
         }
-        
-        /// <summary>
+
         /// Обновляет прогресс чтения
-        /// </summary>
+
         private void UpdateReadingProgress(double percentage)
         {
             ReadingProgressBar.Value = percentage;
             ProgressText.Text = $"Прогресс чтения: {percentage:F0}%";
         }
-        
-        /// <summary>
+
         /// Находит ScrollViewer для указанного элемента
-        /// </summary>
+
         private ScrollViewer FindScrollViewer(DependencyObject element)
         {
             if (element == null) return null;
@@ -1689,10 +1603,9 @@ namespace LIB
             DependencyObject parent = VisualTreeHelper.GetParent(element);
             return FindScrollViewer(parent);
         }
-        
-        /// <summary>
+
         /// Обработчик изменения прокрутки для отслеживания прогресса
-        /// </summary>
+
         private void ScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
         {
             if (sender is ScrollViewer scrollViewer)
@@ -1710,10 +1623,9 @@ namespace LIB
                 StatusText.Text = $"Прогресс чтения: {progress:F0}%";
             }
         }
-        
-        /// <summary>
+
         /// Возвращает к главной панели библиотеки
-        /// </summary>
+
         private void BackToLibrary_Click(object sender, RoutedEventArgs e)
         {
             // Скрываем панель чтения
@@ -1731,10 +1643,9 @@ namespace LIB
             currentBook = null;
             currentXmlContent = "";
         }
-        
-        /// <summary>
+
         /// Увеличивает размер шрифта
-        /// </summary>
+
         private void FontSizeUp_Click(object sender, RoutedEventArgs e)
         {
             double currentSize = BookContentText.FontSize;
@@ -1744,10 +1655,9 @@ namespace LIB
                 StatusText.Text = $"Размер шрифта: {BookContentText.FontSize}";
             }
         }
-        
-        /// <summary>
+
         /// Уменьшает размер шрифта
-        /// </summary>
+
         private void FontSizeDown_Click(object sender, RoutedEventArgs e)
         {
             double currentSize = BookContentText.FontSize;
@@ -1757,10 +1667,9 @@ namespace LIB
                 StatusText.Text = $"Размер шрифта: {BookContentText.FontSize}";
             }
         }
-        
-        /// <summary>
+
         /// Обработчик нажатий клавиш для навигации по страницам
-        /// </summary>
+
         private void MainWindow_KeyDown(object sender, KeyEventArgs e)
         {
             if (ReadingPanel.Visibility == Visibility.Visible && bookPages.Count > 0)
@@ -1791,10 +1700,9 @@ namespace LIB
                 }
             }
         }
-        
-                /// <summary>
+
         /// Переход на предыдущую страницу
-        /// </summary>
+
         private void GoToPreviousPage()
         {
             if (currentPageIndex > 0)
@@ -1804,10 +1712,9 @@ namespace LIB
                 UpdateReadingProgressFromPage();
             }
         }
-        
-        /// <summary>
+
         /// Переход на следующую страницу
-        /// </summary>
+
         private void GoToNextPage()
         {
             if (currentPageIndex < bookPages.Count - 1)
@@ -1817,30 +1724,27 @@ namespace LIB
                 UpdateReadingProgressFromPage();
             }
         }
-        
-        /// <summary>
+
         /// Переход на первую страницу
-        /// </summary>
+
         private void GoToFirstPage()
         {
             currentPageIndex = 0;
             ShowCurrentPage();
             UpdateReadingProgressFromPage();
         }
-        
-        /// <summary>
+
         /// Переход на последнюю страницу
-        /// </summary>
+
         private void GoToLastPage()
         {
             currentPageIndex = bookPages.Count - 1;
             ShowCurrentPage();
             UpdateReadingProgressFromPage();
         }
-        
-        /// <summary>
+
         /// Показывает текущую страницу
-        /// </summary>
+
         private void ShowCurrentPage()
         {
             if (bookPages.Count > 0 && currentPageIndex >= 0 && currentPageIndex < bookPages.Count)
@@ -1848,15 +1752,12 @@ namespace LIB
                 BookContentText.Text = bookPages[currentPageIndex];
                 UpdatePageInfo();
                 UpdateReadingProgressFromPage();
-                
-                // Обновляем статус
                 StatusText.Text = $"Страница {currentPageIndex + 1} из {bookPages.Count}";
             }
         }
-        
-        /// <summary>
+
         /// Обновляет информацию о текущей странице
-        /// </summary>
+ 
         private void UpdatePageInfo()
         {
             if (bookPages.Count > 0)
@@ -1868,10 +1769,9 @@ namespace LIB
                 NextPageButton.IsEnabled = currentPageIndex < bookPages.Count - 1;
             }
         }
-        
-        /// <summary>
+
         /// Загружает сохраненный прогресс чтения для книги
-        /// </summary>
+
         private void LoadBookProgress(Book book)
         {
             if (readingProgress.ContainsKey(book.FilePath))
@@ -1903,10 +1803,9 @@ namespace LIB
                 StatusText.Text = "Начинаем чтение с начала";
             }
         }
-        
-        /// <summary>
+
         /// Сохраняет текущий прогресс чтения
-        /// </summary>
+
         private void SaveCurrentProgress()
         {
             if (currentBook != null && bookPages.Count > 0)
@@ -1917,10 +1816,9 @@ namespace LIB
                 SaveReadingProgress();
             }
         }
-        
-        /// <summary>
+
         /// Обновляет прогресс чтения на основе текущей страницы
-        /// </summary>
+
         private void UpdateReadingProgressFromPage()
         {
             if (bookPages.Count > 0)
@@ -1932,10 +1830,9 @@ namespace LIB
                 SaveCurrentProgress();
             }
         }
-        
-        /// <summary>
+
         /// Возвращает путь к заглушке обложки в зависимости от типа файла
-        /// </summary>
+ 
         private string GetCoverPlaceholder(string filePath)
         {
             string extension = System.IO.Path.GetExtension(filePath).ToLower();
@@ -1959,12 +1856,9 @@ namespace LIB
                     return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img\\unknown.png"); 
             }
         }
-        
-     
-        
-        /// <summary>
+
         /// Создаёт страницы из содержимого книги с адаптивным размером
-        /// </summary>
+
         private void CreateBookPages(string content)
         {
             bookPages.Clear();
@@ -1973,18 +1867,17 @@ namespace LIB
             var screenHeight = SystemParameters.PrimaryScreenHeight;
             var screenWidth = SystemParameters.PrimaryScreenWidth;
             
-            // Вычисляем оптимальное количество символов на страницу
-            // Базовый размер: ~50 символов в строке, ~30 строк на экран
-            int baseCharsPerPage = 50 * 30; // 1500 символов
+            // Оптимальное количество символов на страницу
+            int baseCharsPerPage = 1500; 
             
             // Адаптируем под размер экрана
             double scaleFactor = Math.Min(screenHeight / 1080.0, screenWidth / 1920.0);
             int charsPerPage = (int)(baseCharsPerPage * scaleFactor);
             
             // Ограничиваем размер страницы (минимум 1000, максимум 3000 символов)
-            charsPerPage = Math.Max(1000, Math.Min(3000, charsPerPage));
+            charsPerPage = Math.Max(1500, Math.Min(3000, charsPerPage));
             
-            if (content.Length <= charsPerPage)
+            if (content.Length <= 500)
             {
                 // Если содержимое помещается на одну страницу
                 bookPages.Add(content);
@@ -2093,7 +1986,7 @@ namespace LIB
                 if (readingProgress.ContainsKey(book.FilePath))
                 {
                     var progress = readingProgress[book.FilePath];
-                    book.ProgressWidth = (progress.ProgressPercentage / 100.0) * 180; // 180px - ширина прогресс-бара
+                    book.ProgressWidth = (progress.ProgressPercentage / 100.0) * 180; 
                     book.ProgressText = $"{progress.ProgressPercentage:F0}% ({progress.CurrentPage + 1}/{progress.TotalPages})";
                 }
                 else
