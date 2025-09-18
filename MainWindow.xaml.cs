@@ -863,17 +863,7 @@ namespace LIB
             }
             catch (Exception ex)
             {
-                return $"❌ Ошибка при чтении PDF файла: {ex.Message}\n\n" +
-                       "Возможные причины:\n" +
-                       "• Файл повреждён или защищён паролем\n" +
-                       "• Неподдерживаемый формат PDF\n" +
-                       "• Недостаточно прав для чтения файла\n" +
-                       "• Файл зашифрован или имеет ограничения\n\n" +
-                       "Попробуйте:\n" +
-                       "• Проверить целостность файла\n" +
-                       "• Открыть файл в другом PDF-ридере\n" +
-                       "• Использовать другой PDF файл\n" +
-                       "• Убрать защиту с PDF файла";
+                return $"❌ Ошибка при чтении PDF файла: {ex.Message}\n\n";      
             }
         }
         
@@ -1567,16 +1557,6 @@ namespace LIB
             {
                 errorText += $"❌ Не удалось прочитать содержимое файла.\n\n";
             }
-            
-            errorText += $"🔧 Возможные причины:\n" +
-                        $"• Файл повреждён или недоступен\n" +
-                        $"• Неподдерживаемый формат файла\n" +
-                        $"• Недостаточно прав для чтения\n\n" +
-                        $"💡 Попробуйте:\n" +
-                        $"• Проверить, что файл существует\n" +
-                        $"• Использовать текстовые файлы (.txt)\n" +
-                        $"• Перезапустить приложение";
-            
             BookContentText.Text = errorText;
             StatusText.Text = "Ошибка при чтении файла";
         }
@@ -1877,7 +1857,7 @@ namespace LIB
             // Ограничиваем размер страницы (минимум 1000, максимум 3000 символов)
             charsPerPage = Math.Max(1500, Math.Min(3000, charsPerPage));
             
-            if (content.Length <= 500)
+            if (content.Length <= 2000)
             {
                 // Если содержимое помещается на одну страницу
                 bookPages.Add(content);
@@ -1932,12 +1912,9 @@ namespace LIB
                 PageText.Text = $"Страница 1 из {bookPages.Count}";
             }
         }
-        
 
-        
-        /// <summary>
         /// Показывает панель с гридом книг
-        /// </summary>
+
         private void BooksButton_Click(object sender, RoutedEventArgs e)
         {
             // Скрываем все панели
@@ -1950,10 +1927,9 @@ namespace LIB
             // Обновляем отображение книг в гриде
             UpdateBooksDisplay();
         }
-        
-        /// <summary>
+
         /// Возврат к главной панели из грида книг
-        /// </summary>
+
         private void BackToWelcome_Click(object sender, RoutedEventArgs e)
         {
             // Скрываем панель с гридом
@@ -1962,10 +1938,9 @@ namespace LIB
             // Показываем главную панель
             WelcomePanel.Visibility = Visibility.Visible;
         }
-        
-        /// <summary>
+
         /// Обновляет отображение книг в гриде
-        /// </summary>
+
         private void UpdateBooksGridDisplay()
         {
             // Обновляем прогресс для каждой книги
@@ -1975,10 +1950,9 @@ namespace LIB
             BooksItemsControl.ItemsSource = null;
             BooksItemsControl.ItemsSource = books;
         }
-        
-        /// <summary>
+
         /// Обновляет прогресс чтения для всех книг
-        /// </summary>
+
         private void UpdateBooksProgress()
         {
             foreach (var book in books)
@@ -1996,10 +1970,9 @@ namespace LIB
                 }
             }
         }
-        
-        /// <summary>
+
         /// Чтение книги из грида
-        /// </summary>
+
         private void ReadBookFromGrid_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button button && button.Tag is Book book)
@@ -2007,10 +1980,9 @@ namespace LIB
                 ShowReadingPanel(book);
             }
         }
-        
-        /// <summary>
+
         /// Редактирование книги из грида
-        /// </summary>
+
         private void EditBookFromGrid_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button button && button.Tag is Book book)
@@ -2018,10 +1990,9 @@ namespace LIB
                 ShowEditBookDialog(book);
             }
         }
-        
-        /// <summary>
+
         /// Показывает диалог редактирования книги
-        /// </summary>
+
         private void ShowEditBookDialog(Book book)
         {
             // Создаём окно редактирования
@@ -2227,10 +2198,9 @@ namespace LIB
             // Показываем окно
             editWindow.ShowDialog();
         }
-        
-        /// <summary>
+
         /// Удаление книги из грида
-        /// </summary>
+
         private void DeleteBookFromGrid_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button button && button.Tag is Book book)
@@ -2249,10 +2219,9 @@ namespace LIB
                 }
             }
         }
-        
-        /// <summary>
+
         /// Сброс прогресса чтения из грида
-        /// </summary>
+
         private void ResetProgressFromGrid_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button button && button.Tag is Book book)
@@ -2286,26 +2255,23 @@ namespace LIB
                 }
             }
         }
-        
-        /// <summary>
+
         /// Обработчик кнопки "Предыдущая страница"
-        /// </summary>
+
         private void PreviousPage_Click(object sender, RoutedEventArgs e)
         {
             GoToPreviousPage();
         }
-        
-        /// <summary>
+
         /// Обработчик кнопки "Следующая страница"
-        /// </summary>
+
         private void NextPage_Click(object sender, RoutedEventArgs e)
         {
             GoToNextPage();
         }
-        
-        /// <summary>
+
         /// Показывает исходный XML для отладки
-        /// </summary>
+
         private void ShowXml_Click(object sender, RoutedEventArgs e)
         {
             if (!string.IsNullOrEmpty(currentXmlContent))
@@ -2355,10 +2321,8 @@ namespace LIB
             readingProgress.Clear();
         }
 
-
-        /// <summary>
         /// Сброс прогресса чтения для всех книг
-        /// </summary>
+
         private void ResetAllProgress_Click(object sender, RoutedEventArgs e)
         {
             if (readingProgress.Count > 0)
