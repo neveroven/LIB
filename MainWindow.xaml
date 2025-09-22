@@ -1192,20 +1192,18 @@
                         </Border>
                         
                         <!-- Область текста -->
-                        <Border Grid.Row="1" 
+                        <Border Grid.Row="1"
                                 Background="{DynamicResource ButtonBackgroundBrush}" 
                                 BorderBrush="{DynamicResource ButtonBorderBrush}" 
                                 BorderThickness="1"
                                 CornerRadius="8"
                                 Padding="20,10,20,0">
-                            <TextBlock x:Name="BookContentText"
-                                       Text="Здесь будет отображаться содержимое книги..."
-                                       FontSize="18"
-                                       Foreground="{DynamicResource TextBrush}"
-                                       TextWrapping="Wrap"
-                                       LineHeight="28"
-                                       TextAlignment="Justify"
-                                       VerticalAlignment="Top"/>
+                            <ScrollViewer x:Name="BookScrollViewer"
+                                          VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          ScrollChanged="ScrollViewer_ScrollChanged">
+                                <StackPanel x:Name="BookContentPanel"/>
+                            </ScrollViewer>
                         </Border>
                         
                         <!-- Нижняя панель с прогрессом -->

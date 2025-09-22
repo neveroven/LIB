@@ -138,7 +138,8 @@ namespace LIB
             
             // Добавляем обработчики клавиатуры для навигации по страницам
             this.KeyDown += MainWindow_KeyDown;
-            
+            this.ReadingPanel.KeyDown += MainWindow_KeyDown;
+
             // Добавляем обработчик для кнопки возврата из грида
             BackToWelcomeButton.Click += BackToWelcome_Click;
         }
@@ -672,9 +673,11 @@ namespace LIB
                 {
                     // Создаём страницы из содержимого
                     CreateBookPages(content);
-                    
-                    StatusText.Text = "Книга успешно загружена. Используйте стрелки ← → для навигации";
-                    
+                    // Рендерим все страницы в панель для вертикальной прокрутки
+                    RenderPagesToPanel();
+                    // Переходим к текущей странице (по умолчанию 0 или восстановленная)
+                    ShowCurrentPage();
+                    StatusText.Text = "Книга успешно загружена. Используйте колесо мыши для прокрутки и стрелки для перехода по страницам";
                 }
                 else
                 {
@@ -1557,7 +1560,23 @@ namespace LIB
             {
                 errorText += $"❌ Не удалось прочитать содержимое файла.\n\n";
             }
-            BookContentText.Text = errorText;
+            // Показываем ошибку в панели содержимого
+            var contentPanel = GetBookContentPanel();
+            if (contentPanel != null)
+            {
+                contentPanel.Children.Clear();
+                contentPanel.Children.Add(new TextBlock
+                {
+                    Text = errorText,
+                    FontSize = 18,
+                    Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                    TextWrapping = TextWrapping.Wrap,
+                    LineHeight = 28,
+                    TextAlignment = TextAlignment.Justify,
+                    VerticalAlignment = VerticalAlignment.Top,
+                    Margin = new Thickness(0, 0, 0, 16)
+                });
+            }
             StatusText.Text = "Ошибка при чтении файла";
         }
 
@@ -1628,11 +1647,11 @@ namespace LIB
 
         private void FontSizeUp_Click(object sender, RoutedEventArgs e)
         {
-            double currentSize = BookContentText.FontSize;
+            double currentSize = GetCurrentContentFontSize();
             if (currentSize < 32)
             {
-                BookContentText.FontSize = currentSize + 2;
-                StatusText.Text = $"Размер шрифта: {BookContentText.FontSize}";
+                SetContentFontSize(currentSize + 2);
+                StatusText.Text = $"Размер шрифта: {GetCurrentContentFontSize()}";
             }
         }
 
@@ -1640,11 +1659,11 @@ namespace LIB
 
         private void FontSizeDown_Click(object sender, RoutedEventArgs e)
         {
-            double currentSize = BookContentText.FontSize;
+            double currentSize = GetCurrentContentFontSize();
             if (currentSize > 12)
             {
-                BookContentText.FontSize = currentSize - 2;
-                StatusText.Text = $"Размер шрифта: {BookContentText.FontSize}";
+                SetContentFontSize(currentSize - 2);
+                StatusText.Text = $"Размер шрифта: {GetCurrentContentFontSize()}";
             }
         }
 
@@ -1658,14 +1677,12 @@ namespace LIB
                 {
                     case Key.Left:
                     case Key.PageUp:
-                    case Key.Up:
                         GoToPreviousPage();
                         e.Handled = true;
                         break;
                     case Key.Right:
                     case Key.PageDown:
                     case Key.Space:
-                    case Key.Down:
                         GoToNextPage();
                         e.Handled = true;
                         break;
@@ -1729,7 +1746,13 @@ namespace LIB
         {
             if (bookPages.Count > 0 && currentPageIndex >= 0 && currentPageIndex < bookPages.Count)
             {
-                BookContentText.Text = bookPages[currentPageIndex];
+                // Прокручиваем к соответствующему блоку страницы
+                var contentPanel = GetBookContentPanel();
+                if (contentPanel != null && contentPanel.Children.Count == bookPages.Count)
+                {
+                    var pageElement = contentPanel.Children[currentPageIndex] as FrameworkElement;
+                    pageElement?.BringIntoView();
+                }
                 UpdatePageInfo();
                 UpdateReadingProgressFromPage();
                 StatusText.Text = $"Страница {currentPageIndex + 1} из {bookPages.Count}";
@@ -1911,6 +1934,67 @@ namespace LIB
             {
                 PageText.Text = $"Страница 1 из {bookPages.Count}";
             }
+        }
+
+        /// Рендерит все страницы в панель для вертикальной прокрутки
+        private void RenderPagesToPanel()
+        {
+            var contentPanel = GetBookContentPanel();
+            if (contentPanel == null)
+                return;
+            contentPanel.Children.Clear();
+            for (int i = 0; i < bookPages.Count; i++)
+            {
+                var block = new TextBlock
+                {
+                    Text = bookPages[i],
+                    FontSize = 18,
+                    Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                    TextWrapping = TextWrapping.Wrap,
+                    LineHeight = 28,
+                    TextAlignment = TextAlignment.Justify,
+                    VerticalAlignment = VerticalAlignment.Top,
+                    Margin = new Thickness(0, 0, 0, 24)
+                };
+                contentPanel.Children.Add(block);
+            }
+            // Сбрасываем прокрутку вверх
+            var sv = GetBookScrollViewer();
+            sv?.ScrollToVerticalOffset(0);
+        }
+
+        private double GetCurrentContentFontSize()
+        {
+            var contentPanel = GetBookContentPanel();
+            if (contentPanel != null && contentPanel.Children.Count > 0 && contentPanel.Children[0] is TextBlock tb)
+            {
+                return tb.FontSize;
+            }
+            return 18;
+        }
+
+        private void SetContentFontSize(double size)
+        {
+            var contentPanel = GetBookContentPanel();
+            if (contentPanel == null) return;
+            foreach (var child in contentPanel.Children)
+            {
+                if (child is TextBlock tb)
+                {
+                    tb.FontSize = size;
+                    tb.LineHeight = Math.Round(size * 1.55);
+                }
+            }
+        }
+
+        private StackPanel? GetBookContentPanel()
+        {
+            return this.FindName("BookContentPanel") as StackPanel;
+        }
+
+        private ScrollViewer? GetBookScrollViewer()
+        {
+            return this.FindName("BookScrollViewer") as ScrollViewer;
         }
 
         /// Показывает панель с гридом книг
