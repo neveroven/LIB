@@ -1091,7 +1091,7 @@
                         </ScrollViewer>
                     </Grid>
                     
-                    <!-- Панель чтения книги (скрыта по умолчанию) -->
+                    <!-- Панель чтения книги -->
                     <Grid x:Name="ReadingPanel" Visibility="Collapsed">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -1202,7 +1202,8 @@
                                           VerticalScrollBarVisibility="Auto"
                                           HorizontalScrollBarVisibility="Disabled"
                                           ScrollChanged="ScrollViewer_ScrollChanged">
-                                <StackPanel x:Name="BookContentPanel"/>
+                                <StackPanel x:Name="BookContentPanel"
+                                            />
                             </ScrollViewer>
                         </Border>
                         
