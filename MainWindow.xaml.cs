@@ -15,6 +15,7 @@ using System.Text.Json;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
 using MySqlConnector;
+using Microsoft.Extensions.Configuration;
 
 namespace LIB
 {
@@ -97,11 +98,13 @@ namespace LIB
         private int currentPageIndex = 0;
         private Book? currentBook = null;
 
+
         // Прогресс чтения
         private Dictionary<string, ReadingProgress> readingProgress = new Dictionary<string, ReadingProgress>();
 
         public MainWindow()
         {
+
             index_found();
             InitializeComponent();
 
@@ -143,7 +146,6 @@ namespace LIB
             // Добавляем обработчик для кнопки возврата из грида
             BackToWelcomeButton.Click += BackToWelcome_Click;
         }
-
         private void ThemeToggleButton_Click(object sender, RoutedEventArgs e)
         {
             if (isDarkTheme)

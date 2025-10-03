@@ -1,1 +1,13 @@
-[]
+[
+  {
+    "LocalBookID": 0,
+    "Title": "59708835",
+    "Author": "Не указан",
+    "FilePath": "C:\\Users\\User\\Downloads\\Telegram Desktop\\59708835.fb2",
+    "FileName": "59708835.fb2",
+    "AddedDate": "2025-10-03T09:52:05.8844263+02:00",
+    "CoverImageSource": "C:\\Users\\User\\Documents\\GitHub\\LIB\\bin\\Debug\\net9.0-windows\\img\\fb2.png",
+    "ProgressWidth": 0,
+    "ProgressText": ""
+  }
+]
