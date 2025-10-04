@@ -22,27 +22,84 @@ namespace LIB
     /// Класс для хранения прогресса чтения
     public class ReadingProgress
     {
-        public string FilePath { get; set; }
+        public int Id { get; set; }
+        public int BookFileId { get; set; }
+        public int UserId { get; set; }
+        public string DeviceId { get; set; }
         public int CurrentPage { get; set; }
-        public double ProgressPercentage { get; set; }
-        public DateTime LastReadDate { get; set; }
         public int TotalPages { get; set; }
+        public double ProgressPercent { get; set; }
+        public DateTime LastReadAt { get; set; }
 
-        public ReadingProgress(string filePath, int currentPage, double progressPercentage, int totalPages)
+        public ReadingProgress()
         {
-            FilePath = filePath;
+            DeviceId = "default";
+            LastReadAt = DateTime.Now;
+        }
+
+        public ReadingProgress(int bookFileId, int userId, int currentPage, int totalPages)
+        {
+            BookFileId = bookFileId;
+            UserId = userId;
             CurrentPage = currentPage;
-            ProgressPercentage = progressPercentage;
             TotalPages = totalPages;
-            LastReadDate = DateTime.Now;
+            ProgressPercent = totalPages > 0 ? ((double)currentPage / totalPages) * 100 : 0;
+            DeviceId = "default";
+            LastReadAt = DateTime.Now;
         }
     }
 
-    /// Класс для представления книги
+    /// Класс для работы с файлами книг в БД
+    public class BookFile
+    {
+        public int Id { get; set; }
+        public int BookId { get; set; }
+        public string Format { get; set; }
+        public string SourceType { get; set; }
+        public string LocalPath { get; set; }
+        public string ServerUri { get; set; }
+        public string FileName { get; set; }
+        public long FileSizeBytes { get; set; }
+        public int PageCount { get; set; }
+        public string ContentHash { get; set; }
+        public string CoverImageUri { get; set; }
+        public DateTime AddedAt { get; set; }
+        public bool Available { get; set; }
+
+        public BookFile()
+        {
+            SourceType = "local";
+            AddedAt = DateTime.Now;
+            Available = true;
+        }
+    }
+
+    /// Класс для работы с книгами в БД
+    public class BookDB
+    {
+        public int Id { get; set; }
+        public string Title { get; set; }
+        public string Author { get; set; }
+        public string Series { get; set; }
+        public int SeriesIndex { get; set; }
+        public string Language { get; set; }
+        public int PublishedYear { get; set; }
+        public string Description { get; set; }
+        public List<BookFile> Files { get; set; }
+
+        public BookDB()
+        {
+            Files = new List<BookFile>();
+        }
+    }
+
+    /// Класс для представления книги (совместимость с UI)
 
     public class Book
     {
-        public int LocalBookID{ get; set; }
+        public int LocalBookID { get; set; }
+        public int BookId { get; set; } // ID из БД
+        public int BookFileId { get; set; } // ID файла из БД
         public string Title { get; set; }
         public string Author { get; set; }
         public string FilePath { get; set; }
@@ -52,9 +109,26 @@ namespace LIB
         public double ProgressWidth { get; set; } 
         public string ProgressText { get; set; } 
 
-        public Book(int bookid,string title, string author, string filePath, string fileName)
+        public Book()
+        {
+            LocalBookID = 0;
+            BookId = 0;
+            BookFileId = 0;
+            Title = "";
+            Author = "Не указан";
+            FilePath = "";
+            FileName = "";
+            AddedDate = DateTime.Now;
+            CoverImageSource = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img\\unknown.png"); 
+            ProgressWidth = 0;
+            ProgressText = "";
+        }
+
+        public Book(int bookid, string title, string author, string filePath, string fileName)
         {
             LocalBookID = bookid;
+            BookId = 0;
+            BookFileId = 0;
             Title = title;
             Author = author;
             FilePath = filePath;
@@ -82,8 +156,7 @@ namespace LIB
         private bool isLogin = false;
         private List<Book> books = new List<Book>();
         private int num_index = -1;
-        private readonly string booksFilePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "books.json");
-        private readonly string readingProgressFilePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "reading_progress.json");
+        private int currentUserId = 1; // ID текущего пользователя (по умолчанию 1)
         private string currentXmlContent = "";
         private void index_found() //Костыль для LocalBookID
         {
@@ -99,8 +172,8 @@ namespace LIB
         private Book? currentBook = null;
 
 
-        // Прогресс чтения
-        private Dictionary<string, ReadingProgress> readingProgress = new Dictionary<string, ReadingProgress>();
+        // Прогресс чтения (теперь по BookFileId)
+        private Dictionary<int, ReadingProgress> readingProgress = new Dictionary<int, ReadingProgress>();
 
         public MainWindow()
         {
@@ -118,11 +191,8 @@ namespace LIB
             this.WindowStyle = WindowStyle.None;
             this.ResizeMode = ResizeMode.NoResize;
 
-            // Загружаем книги из JSON файла
-            LoadBooksFromJson();
-
-            // Загружаем прогресс чтения
-            LoadReadingProgress();
+            // Загружаем книги из БД
+            LoadBooksFromDatabase();
 
             // Инициализируем отображение книг
             UpdateBooksDisplay();
@@ -220,9 +290,11 @@ namespace LIB
 
                     newBook.CoverImageSource = GetCoverPlaceholder(filePath);
 
-                    books.Add(newBook);
+                    // Сохраняем книгу в БД
+                    SaveBookToDatabase(newBook);
 
-                    SaveBooksToJson();
+                    // Перезагружаем книги из БД
+                    LoadBooksFromDatabase();
 
                     UpdateBooksDisplay();
                 }
@@ -268,101 +340,449 @@ namespace LIB
             }
         }
 
-        /// Загружает книги из JSON файла
+        /// Загружает книги из базы данных
 
-        private void LoadBooksFromJson()
+        private void LoadBooksFromDatabase()
         {
             try
             {
-                if (File.Exists(booksFilePath))
+                books.Clear();
+                using (var conn = new MySqlConnection(conectionString))
                 {
-                    string jsonContent = File.ReadAllText(booksFilePath);
-                    if (!string.IsNullOrWhiteSpace(jsonContent))
+                    conn.Open();
+                    
+                    // Загружаем книги с их файлами
+                    using (var command = new MySqlCommand(
+                        @"SELECT b.id, b.title, b.author, b.series, b.series_index, b.language, b.published_year, b.description,
+                                 bf.id as file_id, bf.format, bf.local_path, bf.file_name, bf.file_size_bytes, 
+                                 bf.page_count, bf.cover_image_uri, bf.added_at
+                          FROM books b
+                          LEFT JOIN book_files bf ON b.id = bf.book_id
+                          WHERE bf.available = 1 OR bf.available IS NULL
+                          ORDER BY b.id, bf.id", conn))
                     {
-                        books = JsonSerializer.Deserialize<List<Book>>(jsonContent) ?? new List<Book>();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                books = new List<Book>();
-            }
-        }
-
-        /// Загружает прогресс чтения из JSON файла
-
-        private void LoadReadingProgress()
-        {
-            try
-            {
-                if (File.Exists(readingProgressFilePath))
-                {
-                    string jsonContent = File.ReadAllText(readingProgressFilePath);
-                    if (!string.IsNullOrWhiteSpace(jsonContent))
-                    {
-                        var progressList = JsonSerializer.Deserialize<List<ReadingProgress>>(jsonContent) ?? new List<ReadingProgress>();
-                        readingProgress.Clear();
-
-                        foreach (var progress in progressList)
+                        using (var reader = command.ExecuteReader())
                         {
-                            readingProgress[progress.FilePath] = progress;
+                            var bookDict = new Dictionary<int, Book>();
+                            
+                            while (reader.Read())
+                            {
+                                int bookId = reader.GetInt32("id");
+                                string title = reader.GetString("title");
+                                string author = reader.IsDBNull(0) ? "Не указан" : reader.GetString("author");
+                                
+                                if (!bookDict.ContainsKey(bookId))
+                                {
+                                    var book = new Book
+                                    {
+                                        BookId = bookId,
+                                        Title = title,
+                                        Author = author,
+                                        LocalBookID = bookId, // Используем ID из БД
+                                        AddedDate = reader.GetDateTime("added_at"),
+                                        CoverImageSource = GetCoverPlaceholder(reader.IsDBNull(0) ? "" : reader.GetString("local_path"))
+                                    };
+                                    bookDict[bookId] = book;
+                                }
+                                
+                                // Если есть файл, обновляем информацию о файле
+                                if (!reader.IsDBNull(0))
+                                {
+                                    var book = bookDict[bookId];
+                                    book.BookFileId = reader.GetInt32("file_id");
+                                    book.FilePath = reader.GetString("local_path");
+                                    book.FileName = reader.GetString("file_name");
+                                }
+                            }
+                            
+                            books = bookDict.Values.ToList();
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                readingProgress = new Dictionary<string, ReadingProgress>();
+                books = new List<Book>();
+                MessageBox.Show($"Ошибка при загрузке книг из БД: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
-        /// Сохраняет прогресс чтения в JSON файл
+        /// Загружает прогресс чтения из JSON файла
 
-        private void SaveReadingProgress()
+        /// Загружает прогресс чтения из базы данных
+
+        private void LoadReadingProgressFromDatabase()
         {
             try
             {
-                var options = new JsonSerializerOptions
+                readingProgress.Clear();
+                using (var conn = new MySqlConnection(conectionString))
                 {
-                    WriteIndented = true,
-                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-                };
-
-                string jsonContent = JsonSerializer.Serialize(readingProgress.Values.ToList(), options);
-                File.WriteAllText(readingProgressFilePath, jsonContent);
+                    conn.Open();
+                    
+                    using (var command = new MySqlCommand(
+                        "SELECT * FROM reading_progress WHERE user_id = @user_id",
+                        conn))
+                    {
+                        command.Parameters.AddWithValue("@user_id", currentUserId);
+                        
+                        using (var reader = command.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                var progress = new ReadingProgress
+                                {
+                                    Id = reader.GetInt32("id"),
+                                    BookFileId = reader.GetInt32("book_file_id"),
+                                    UserId = reader.GetInt32("user_id"),
+                                    DeviceId = reader.IsDBNull(0) ? "default" : reader.GetString("device_id"),
+                                    CurrentPage = reader.GetInt32("current_page"),
+                                    TotalPages = reader.IsDBNull(0) ? 0 : reader.GetInt32("total_pages"),
+                                    ProgressPercent = reader.IsDBNull(0) ? 0 : reader.GetDouble("progress_percent"),
+                                    LastReadAt = reader.GetDateTime("last_read_at")
+                                };
+                                
+                                readingProgress[progress.BookFileId] = progress;
+                            }
+                        }
+                    }
+                }
             }
             catch (Exception ex)
-            { }
+            {
+                readingProgress = new Dictionary<int, ReadingProgress>();
+                MessageBox.Show($"Ошибка при загрузке прогресса чтения из БД: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
-        /// Сохраняет книги в JSON файл
+        /// Удаляет прогресс чтения из базы данных
 
-        private void SaveBooksToJson()
+        private void DeleteReadingProgressFromDatabase(int bookFileId)
         {
             try
             {
-                var options = new JsonSerializerOptions
+                using (var conn = new MySqlConnection(conectionString))
                 {
-                    WriteIndented = true,
-                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-                };
-
-                string jsonContent = JsonSerializer.Serialize(books, options);
-                File.WriteAllText(booksFilePath, jsonContent);
+                    conn.Open();
+                    
+                    using (var command = new MySqlCommand(
+                        "DELETE FROM reading_progress WHERE book_file_id = @book_file_id AND user_id = @user_id",
+                        conn))
+                    {
+                        command.Parameters.AddWithValue("@book_file_id", bookFileId);
+                        command.Parameters.AddWithValue("@user_id", currentUserId);
+                        command.ExecuteNonQuery();
+                    }
+                }
             }
             catch (Exception ex)
-            { }
+            {
+                MessageBox.Show($"Ошибка при удалении прогресса чтения из БД: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// Очищает весь прогресс чтения из базы данных
+
+        private void ClearAllReadingProgressFromDatabase()
+        {
+            try
+            {
+                using (var conn = new MySqlConnection(conectionString))
+                {
+                    conn.Open();
+                    
+                    using (var command = new MySqlCommand(
+                        "DELETE FROM reading_progress WHERE user_id = @user_id",
+                        conn))
+                    {
+                        command.Parameters.AddWithValue("@user_id", currentUserId);
+                        command.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при очистке прогресса чтения из БД: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// Сохраняет прогресс чтения в базу данных
+
+        private void SaveReadingProgressToDatabase(ReadingProgress progress)
+        {
+            try
+            {
+                using (var conn = new MySqlConnection(conectionString))
+                {
+                    conn.Open();
+                    
+                    if (progress.Id == 0)
+                    {
+                        // Вставляем новый прогресс
+                        using (var command = new MySqlCommand(
+                            "INSERT INTO reading_progress (book_file_id, user_id, device_id, current_page, total_pages, progress_percent, last_read_at) VALUES (@book_file_id, @user_id, @device_id, @current_page, @total_pages, @progress_percent, @last_read_at)",
+                            conn))
+                        {
+                            command.Parameters.AddWithValue("@book_file_id", progress.BookFileId);
+                            command.Parameters.AddWithValue("@user_id", progress.UserId);
+                            command.Parameters.AddWithValue("@device_id", progress.DeviceId);
+                            command.Parameters.AddWithValue("@current_page", progress.CurrentPage);
+                            command.Parameters.AddWithValue("@total_pages", progress.TotalPages);
+                            command.Parameters.AddWithValue("@progress_percent", progress.ProgressPercent);
+                            command.Parameters.AddWithValue("@last_read_at", progress.LastReadAt);
+                            
+                            command.ExecuteNonQuery();
+                            progress.Id = (int)command.LastInsertedId;
+                        }
+                    }
+                    else
+                    {
+                        // Обновляем существующий прогресс
+                        using (var command = new MySqlCommand(
+                            "UPDATE reading_progress SET current_page = @current_page, total_pages = @total_pages, progress_percent = @progress_percent, last_read_at = @last_read_at WHERE id = @id",
+                            conn))
+                        {
+                            command.Parameters.AddWithValue("@current_page", progress.CurrentPage);
+                            command.Parameters.AddWithValue("@total_pages", progress.TotalPages);
+                            command.Parameters.AddWithValue("@progress_percent", progress.ProgressPercent);
+                            command.Parameters.AddWithValue("@last_read_at", progress.LastReadAt);
+                            command.Parameters.AddWithValue("@id", progress.Id);
+                            
+                            command.ExecuteNonQuery();
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при сохранении прогресса чтения в БД: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// Очищает все книги из базы данных
+
+        private void ClearAllBooksFromDatabase()
+        {
+            try
+            {
+                using (var conn = new MySqlConnection(conectionString))
+                {
+                    conn.Open();
+                    
+                    using (var transaction = conn.BeginTransaction())
+                    {
+                        try
+                        {
+                            // Удаляем весь прогресс чтения
+                            using (var command = new MySqlCommand(
+                                "DELETE FROM reading_progress",
+                                conn, transaction))
+                            {
+                                command.ExecuteNonQuery();
+                            }
+                            
+                            // Удаляем все файлы книг
+                            using (var command = new MySqlCommand(
+                                "DELETE FROM book_files",
+                                conn, transaction))
+                            {
+                                command.ExecuteNonQuery();
+                            }
+                            
+                            // Удаляем все книги
+                            using (var command = new MySqlCommand(
+                                "DELETE FROM books",
+                                conn, transaction))
+                            {
+                                command.ExecuteNonQuery();
+                            }
+                            
+                            transaction.Commit();
+                        }
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при очистке БД: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// Удаляет книгу из базы данных
+
+        private void DeleteBookFromDatabase(Book book)
+        {
+            try
+            {
+                using (var conn = new MySqlConnection(conectionString))
+                {
+                    conn.Open();
+                    
+                    using (var transaction = conn.BeginTransaction())
+                    {
+                        try
+                        {
+                            // Удаляем прогресс чтения
+                            if (book.BookFileId > 0)
+                            {
+                                using (var command = new MySqlCommand(
+                                    "DELETE FROM reading_progress WHERE book_file_id = @book_file_id",
+                                    conn, transaction))
+                                {
+                                    command.Parameters.AddWithValue("@book_file_id", book.BookFileId);
+                                    command.ExecuteNonQuery();
+                                }
+                            }
+                            
+                            // Удаляем файлы книги
+                            if (book.BookId > 0)
+                            {
+                                using (var command = new MySqlCommand(
+                                    "DELETE FROM book_files WHERE book_id = @book_id",
+                                    conn, transaction))
+                                {
+                                    command.Parameters.AddWithValue("@book_id", book.BookId);
+                                    command.ExecuteNonQuery();
+                                }
+                                
+                                // Удаляем саму книгу
+                                using (var command = new MySqlCommand(
+                                    "DELETE FROM books WHERE id = @id",
+                                    conn, transaction))
+                                {
+                                    command.Parameters.AddWithValue("@id", book.BookId);
+                                    command.ExecuteNonQuery();
+                                }
+                            }
+                            
+                            transaction.Commit();
+                        }
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при удалении книги из БД: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// Сохраняет книгу в базу данных
+
+        private void SaveBookToDatabase(Book book)
+        {
+            try
+            {
+                using (var conn = new MySqlConnection(conectionString))
+                {
+                    conn.Open();
+                    
+                    using (var transaction = conn.BeginTransaction())
+                    {
+                        try
+                        {
+                            // Вставляем книгу в таблицу books
+                            int bookId;
+                            if (book.BookId == 0)
+                            {
+                                using (var command = new MySqlCommand(
+                                    "INSERT INTO books (title, author, series, series_index, language, published_year, description) VALUES (@title, @author, @series, @series_index, @language, @published_year, @description)",
+                                    conn, transaction))
+                                {
+                                    command.Parameters.AddWithValue("@title", book.Title);
+                                    command.Parameters.AddWithValue("@author", book.Author == "Не указан" ? null : book.Author);
+                                    command.Parameters.AddWithValue("@series", (string)null);
+                                    command.Parameters.AddWithValue("@series_index", 0);
+                                    command.Parameters.AddWithValue("@language", (string)null);
+                                    command.Parameters.AddWithValue("@published_year", 0);
+                                    command.Parameters.AddWithValue("@description", (string)null);
+                                    
+                                    command.ExecuteNonQuery();
+                                    bookId = (int)command.LastInsertedId;
+                                    book.BookId = bookId;
+                                }
+                            }
+                            else
+                            {
+                                bookId = book.BookId;
+                                // Обновляем существующую книгу
+                                using (var command = new MySqlCommand(
+                                    "UPDATE books SET title = @title, author = @author WHERE id = @id",
+                                    conn, transaction))
+                                {
+                                    command.Parameters.AddWithValue("@title", book.Title);
+                                    command.Parameters.AddWithValue("@author", book.Author == "Не указан" ? null : book.Author);
+                                    command.Parameters.AddWithValue("@id", bookId);
+                                    command.ExecuteNonQuery();
+                                }
+                            }
+                            
+                            // Вставляем файл книги в таблицу book_files
+                            if (book.BookFileId == 0)
+                            {
+                                string fileExtension = System.IO.Path.GetExtension(book.FilePath).ToLower().TrimStart('.');
+                                if (string.IsNullOrEmpty(fileExtension)) fileExtension = "unknown";
+                                
+                                using (var command = new MySqlCommand(
+                                    "INSERT INTO book_files (book_id, format, source_type, local_path, file_name, file_size_bytes, page_count, added_at, available) VALUES (@book_id, @format, @source_type, @local_path, @file_name, @file_size_bytes, @page_count, @added_at, @available)",
+                                    conn, transaction))
+                                {
+                                    command.Parameters.AddWithValue("@book_id", bookId);
+                                    command.Parameters.AddWithValue("@format", fileExtension);
+                                    command.Parameters.AddWithValue("@source_type", "local");
+                                    command.Parameters.AddWithValue("@local_path", book.FilePath);
+                                    command.Parameters.AddWithValue("@file_name", book.FileName);
+                                    command.Parameters.AddWithValue("@file_size_bytes", new FileInfo(book.FilePath).Length);
+                                    command.Parameters.AddWithValue("@page_count", 0); // Будет обновлено при чтении
+                                    command.Parameters.AddWithValue("@added_at", book.AddedDate);
+                                    command.Parameters.AddWithValue("@available", true);
+                                    
+                                    command.ExecuteNonQuery();
+                                    book.BookFileId = (int)command.LastInsertedId;
+                                }
+                            }
+                            
+                            transaction.Commit();
+                        }
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при сохранении книги в БД: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         /// Очищает список книг
 
         private void ClearBooksButton_Click(object sender, RoutedEventArgs e)
         {
-            readingProgress.Clear();
-            SaveReadingProgress();
-            books.Clear();
-            SaveBooksToJson();
+            var result = MessageBox.Show("Вы уверены, что хотите удалить все книги? Это действие нельзя отменить!",
+                                       "Подтверждение удаления",
+                                       MessageBoxButton.YesNo,
+                                       MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                ClearAllBooksFromDatabase();
+                LoadBooksFromDatabase();
+                LoadReadingProgressFromDatabase();
             UpdateBooksDisplay();
+            }
         }
 
         /// Двойной клик по книге - открывает панель чтения
@@ -391,8 +811,8 @@ namespace LIB
         {
             if (BooksListBox.SelectedItem is Book selectedBook)
             {
-                books.Remove(selectedBook);
-                SaveBooksToJson();
+                DeleteBookFromDatabase(selectedBook);
+                LoadBooksFromDatabase();
                 UpdateBooksDisplay();
             }
         }
@@ -533,7 +953,8 @@ namespace LIB
                     if (!string.IsNullOrWhiteSpace(titleTextBox.Text))
                     {
                         book.Title = titleTextBox.Text.Trim();
-                        SaveBooksToJson();
+                        SaveBookToDatabase(book);
+                        LoadBooksFromDatabase();
                         UpdateBooksDisplay();
                         editWindow.Close();
                     }
@@ -565,9 +986,14 @@ namespace LIB
         {
             if (sender is Button button && button.Tag is Book book)
             {
-                readingProgress.Remove(book.FilePath);
-                books.Remove(book);
-                SaveBooksToJson();
+                // Удаляем прогресс чтения из БД
+                if (book.BookFileId > 0)
+                {
+                    readingProgress.Remove(book.BookFileId);
+                }
+                
+                DeleteBookFromDatabase(book);
+                LoadBooksFromDatabase();
                 UpdateBooksDisplay();
             }
         }
@@ -1782,9 +2208,9 @@ namespace LIB
 
         private void LoadBookProgress(Book book)
         {
-            if (readingProgress.ContainsKey(book.FilePath))
+            if (book.BookFileId > 0 && readingProgress.ContainsKey(book.BookFileId))
             {
-                var progress = readingProgress[book.FilePath];
+                var progress = readingProgress[book.BookFileId];
 
                 // Проверяем, что количество страниц совпадает
                 if (progress.TotalPages == bookPages.Count)
@@ -1816,12 +2242,27 @@ namespace LIB
 
         private void SaveCurrentProgress()
         {
-            if (currentBook != null && bookPages.Count > 0)
+            if (currentBook != null && bookPages.Count > 0 && currentBook.BookFileId > 0)
             {
                 double percentage = ((double)(currentPageIndex + 1) / bookPages.Count) * 100;
-                var progress = new ReadingProgress(currentBook.FilePath, currentPageIndex, percentage, bookPages.Count);
-                readingProgress[currentBook.FilePath] = progress;
-                SaveReadingProgress();
+                
+                if (readingProgress.ContainsKey(currentBook.BookFileId))
+                {
+                    // Обновляем существующий прогресс
+                    var progress = readingProgress[currentBook.BookFileId];
+                    progress.CurrentPage = currentPageIndex;
+                    progress.TotalPages = bookPages.Count;
+                    progress.ProgressPercent = percentage;
+                    progress.LastReadAt = DateTime.Now;
+                    SaveReadingProgressToDatabase(progress);
+                }
+                else
+                {
+                    // Создаем новый прогресс
+                    var progress = new ReadingProgress(currentBook.BookFileId, currentUserId, currentPageIndex, bookPages.Count);
+                    readingProgress[currentBook.BookFileId] = progress;
+                    SaveReadingProgressToDatabase(progress);
+                }
             }
         }
 
@@ -2046,11 +2487,11 @@ namespace LIB
         {
             foreach (var book in books)
             {
-                if (readingProgress.ContainsKey(book.FilePath))
+                if (book.BookFileId > 0 && readingProgress.ContainsKey(book.BookFileId))
                 {
-                    var progress = readingProgress[book.FilePath];
-                    book.ProgressWidth = (progress.ProgressPercentage / 100.0) * 180;
-                    book.ProgressText = $"{progress.ProgressPercentage:F0}% ({progress.CurrentPage + 1}/{progress.TotalPages})";
+                    var progress = readingProgress[book.BookFileId];
+                    book.ProgressWidth = (progress.ProgressPercent / 100.0) * 180;
+                    book.ProgressText = $"{progress.ProgressPercent:F0}% ({progress.CurrentPage + 1}/{progress.TotalPages})";
                 }
                 else
                 {
@@ -2267,8 +2708,9 @@ namespace LIB
                     return;
                 }
 
-                // Сохраняем в JSON
-                SaveBooksToJson();
+                // Сохраняем в БД
+                SaveBookToDatabase(book);
+                LoadBooksFromDatabase();
 
                 // Обновляем отображение
                 UpdateBooksDisplay();
@@ -2301,8 +2743,14 @@ namespace LIB
 
                 if (result == MessageBoxResult.Yes)
                 {
-                    books.Remove(book);
-                    SaveBooksToJson();
+                    // Удаляем прогресс чтения из БД
+                    if (book.BookFileId > 0)
+                    {
+                        readingProgress.Remove(book.BookFileId);
+                    }
+                    
+                    DeleteBookFromDatabase(book);
+                    LoadBooksFromDatabase();
                     UpdateBooksDisplay();
                     UpdateBooksGridDisplay();
                 }
@@ -2322,10 +2770,11 @@ namespace LIB
 
                 if (result == MessageBoxResult.Yes)
                 {
-                    if (readingProgress.ContainsKey(book.FilePath))
+                    if (book.BookFileId > 0 && readingProgress.ContainsKey(book.BookFileId))
                     {
-                        readingProgress.Remove(book.FilePath);
-                        SaveReadingProgress();
+                        // Удаляем прогресс из БД
+                        DeleteReadingProgressFromDatabase(book.BookFileId);
+                        readingProgress.Remove(book.BookFileId);
                         UpdateBooksDisplay();
                         UpdateBooksGridDisplay();
 
@@ -2424,12 +2873,11 @@ namespace LIB
 
                 if (result == MessageBoxResult.Yes)
                 {
+                    // Удаляем весь прогресс из БД
+                    ClearAllReadingProgressFromDatabase();
                     readingProgress.Clear();
-                    SaveReadingProgress();
                     UpdateBooksDisplay();
                     UpdateBooksGridDisplay();
-                    Clear_readingProgress();
-
 
                     MessageBox.Show($"Прогресс чтения для всех книг сброшен.",
                                   "Прогресс сброшен",
@@ -2469,8 +2917,10 @@ namespace LIB
 
             if (!string.IsNullOrEmpty(login) && !string.IsNullOrEmpty(password))
             {
-                if (CheckUserCredentials(login, password))
+                int userId = CheckUserCredentials(login, password);
+                if (userId > 0)
                 {
+                    currentUserId = userId;
                     isLogin = true;
                     AfterLogin();
                 }
@@ -2481,7 +2931,7 @@ namespace LIB
                 }
             }
         }
-        private bool CheckUserCredentials(string login, string password)
+        private int CheckUserCredentials(string login, string password)
         {
             using (var conn = new MySqlConnection(conectionString))
             {
@@ -2489,17 +2939,21 @@ namespace LIB
 
                 // Подготовленная команда для защиты от SQL инъекций
                 using (var command = new MySqlCommand(
-                    "SELECT COUNT(*) FROM Users WHERE User_login = @login AND User_password = @password",
+                    "SELECT UID FROM Users WHERE User_login = @login AND User_password = @password",
                     conn))
                 {
                     command.Parameters.AddWithValue("@login", login);
                     command.Parameters.AddWithValue("@password", password);
 
                     // Выполнение команды и получение результата
-                    int rowsFound = Convert.ToInt32(command.ExecuteScalar());
+                    var result = command.ExecuteScalar();
                     conn.Close();
-                    // Если найдено хотя бы одна запись, значит логин и пароль правильные
-                    return rowsFound > 0;
+                    
+                    if (result != null && result != DBNull.Value)
+                    {
+                        return Convert.ToInt32(result);
+                    }
+                    return 0;
                 }
             }
         }
@@ -2515,8 +2969,10 @@ namespace LIB
                 if (password == again_password)
                 {
                     // Проверяем данные в базе
-                    if (Register(login, password))
+                    int userId = Register(login, password);
+                    if (userId > 0)
                     {
+                        currentUserId = userId;
                         isLogin = true;
                         AfterLogin();
                     }
@@ -2533,7 +2989,9 @@ namespace LIB
             }
 
         }
-        private bool Register(string login, string password)
+        private int Register(string login, string password)
+        {
+            try
         {
             using (var conn = new MySqlConnection(conectionString))
             {
@@ -2544,8 +3002,14 @@ namespace LIB
                     command.Parameters.AddWithValue("@login", login);
                     command.Parameters.AddWithValue("@password", password);
                     command.ExecuteNonQuery();
+                        return (int)command.LastInsertedId;
+                    }
                 }
-                return true;
+            }
+            catch (Exception ex)
+            {
+                // Если пользователь уже существует или другая ошибка
+                return 0;
             }
         }
         private void GuestLogin_Click(object sender, RoutedEventArgs e)
@@ -2563,6 +3027,10 @@ namespace LIB
             BackToLibraryButton.Visibility = Visibility.Collapsed;
             BooksGridPanel.Visibility = Visibility.Collapsed;
             ReadingPanel.Visibility = Visibility.Collapsed;
+
+            // Перезагружаем данные из БД для текущего пользователя
+            LoadBooksFromDatabase();
+            LoadReadingProgressFromDatabase();
 
             // Показываем главную панель
             WelcomePanel.Visibility = Visibility.Visible;
