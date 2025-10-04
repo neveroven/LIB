@@ -463,7 +463,7 @@
                                                 Style="{StaticResource ActiveToggleButtonStyle}"
                                                 VerticalAlignment="Bottom"/>
                                         <Button x:Name="RegistrationButton"
-                                                Content="Регистрация"
+                                Content="Регистрация"
                                                 Height="45"
                                                 Width="120"
                                                 Background="Transparent"
@@ -517,14 +517,14 @@
                                         <Button x:Name="LoginSubmitButton"
                                                 Content="Войти"
                                                 Height="45"
-                                                Background="{DynamicResource ButtonBackgroundBrush}"
-                                                BorderBrush="{DynamicResource ButtonBorderBrush}"
-                                                Foreground="{DynamicResource TextBrush}"
+                                Background="{DynamicResource ButtonBackgroundBrush}"
+                                BorderBrush="{DynamicResource ButtonBorderBrush}"
+                                Foreground="{DynamicResource TextBrush}"
                                                 FontSize="16"
                                                 FontWeight="SemiBold"
                                                 Click="LoginSubmit_Click"
                                                 VerticalAlignment="Bottom"
-                                                Style="{StaticResource RoundedButtonStyle}"/>
+                                Style="{StaticResource RoundedButtonStyle}"/>
                                     </StackPanel>
                                 </StackPanel>
                                 
@@ -583,14 +583,14 @@
                                         <Button x:Name="RegisterSubmitButton"
                                                 Content="Зарегистрироваться"
                                                 Height="45"
-                                                Background="{DynamicResource ButtonBackgroundBrush}"
-                                                BorderBrush="{DynamicResource ButtonBorderBrush}"
-                                                Foreground="{DynamicResource TextBrush}"
+                                Background="{DynamicResource ButtonBackgroundBrush}"
+                                BorderBrush="{DynamicResource ButtonBorderBrush}"
+                                Foreground="{DynamicResource TextBrush}"
                                                 FontSize="16"
                                                 FontWeight="SemiBold"
                                                 Click="RegisterSubmit_Click"
-                                                Style="{StaticResource RoundedButtonStyle}"/>
-                                    </StackPanel>
+                                Style="{StaticResource RoundedButtonStyle}"/>           
+                        </StackPanel>
                                 </StackPanel>
                             </Grid>
                             
@@ -1192,7 +1192,7 @@
                         </Border>
                         
                         <!-- Область текста -->
-                        <Border Grid.Row="1"
+                        <Border Grid.Row="1" 
                                 Background="{DynamicResource ButtonBackgroundBrush}" 
                                 BorderBrush="{DynamicResource ButtonBorderBrush}" 
                                 BorderThickness="1"
