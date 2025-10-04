@@ -25,7 +25,6 @@ namespace LIB
         public int Id { get; set; }
         public int BookFileId { get; set; }
         public int UserId { get; set; }
-        public string DeviceId { get; set; }
         public int CurrentPage { get; set; }
         public int TotalPages { get; set; }
         public double ProgressPercent { get; set; }
@@ -33,7 +32,6 @@ namespace LIB
 
         public ReadingProgress()
         {
-            DeviceId = "default";
             LastReadAt = DateTime.Now;
         }
 
@@ -44,7 +42,6 @@ namespace LIB
             CurrentPage = currentPage;
             TotalPages = totalPages;
             ProgressPercent = totalPages > 0 ? ((double)currentPage / totalPages) * 100 : 0;
-            DeviceId = "default";
             LastReadAt = DateTime.Now;
         }
     }
@@ -59,18 +56,11 @@ namespace LIB
         public string LocalPath { get; set; }
         public string ServerUri { get; set; }
         public string FileName { get; set; }
-        public long FileSizeBytes { get; set; }
-        public int PageCount { get; set; }
-        public string ContentHash { get; set; }
         public string CoverImageUri { get; set; }
-        public DateTime AddedAt { get; set; }
-        public bool Available { get; set; }
 
         public BookFile()
         {
             SourceType = "local";
-            AddedAt = DateTime.Now;
-            Available = true;
         }
     }
 
@@ -80,9 +70,6 @@ namespace LIB
         public int Id { get; set; }
         public string Title { get; set; }
         public string Author { get; set; }
-        public string Series { get; set; }
-        public int SeriesIndex { get; set; }
-        public string Language { get; set; }
         public int PublishedYear { get; set; }
         public string Description { get; set; }
         public List<BookFile> Files { get; set; }
@@ -93,8 +80,20 @@ namespace LIB
         }
     }
 
-    /// Класс для представления книги (совместимость с UI)
+    /// Класс записи пользовательских книг
+    public class UserBook
+    {
+        public int UserId { get; set; }
+        public int BookId { get; set; }
+        public string Status { get; set; }
 
+        public UserBook()
+        {
+            Status = "planned";
+        }
+    }
+
+    /// Класс для представления книги (совместимость с UI)
     public class Book
     {
         public int LocalBookID { get; set; }
@@ -107,7 +106,9 @@ namespace LIB
         public DateTime AddedDate { get; set; }
         public string CoverImageSource { get; set; } 
         public double ProgressWidth { get; set; } 
-        public string ProgressText { get; set; } 
+        public string ProgressText { get; set; }
+        public int PublishedYear { get; set; }
+        public string Description { get; set; } 
 
         public Book()
         {
@@ -122,6 +123,8 @@ namespace LIB
             CoverImageSource = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img\\unknown.png"); 
             ProgressWidth = 0;
             ProgressText = "";
+            PublishedYear = 0;
+            Description = "";
         }
 
         public Book(int bookid, string title, string author, string filePath, string fileName)
@@ -137,6 +140,8 @@ namespace LIB
             CoverImageSource = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img\\unknown.png"); 
             ProgressWidth = 0;
             ProgressText = "";
+            PublishedYear = 0;
+            Description = "";
         }
 
         public override string ToString()
@@ -190,9 +195,6 @@ namespace LIB
             this.WindowState = WindowState.Maximized;
             this.WindowStyle = WindowStyle.None;
             this.ResizeMode = ResizeMode.NoResize;
-
-            // Загружаем книги из БД
-            LoadBooksFromDatabase();
 
             // Инициализируем отображение книг
             UpdateBooksDisplay();
@@ -353,12 +355,10 @@ namespace LIB
                     
                     // Загружаем книги с их файлами
                     using (var command = new MySqlCommand(
-                        @"SELECT b.id, b.title, b.author, b.series, b.series_index, b.language, b.published_year, b.description,
-                                 bf.id as file_id, bf.format, bf.local_path, bf.file_name, bf.file_size_bytes, 
-                                 bf.page_count, bf.cover_image_uri, bf.added_at
+                        @"SELECT b.id, b.title, b.author, b.published_year, b.description,
+                                 bf.id as file_id, bf.source_type, bf.local_path, bf.file_name, bf.cover_image_uri
                           FROM books b
                           LEFT JOIN book_files bf ON b.id = bf.book_id
-                          WHERE bf.available = 1 OR bf.available IS NULL
                           ORDER BY b.id, bf.id", conn))
                     {
                         using (var reader = command.ExecuteReader())
@@ -369,7 +369,7 @@ namespace LIB
                             {
                                 int bookId = reader.GetInt32("id");
                                 string title = reader.GetString("title");
-                                string author = reader.IsDBNull(0) ? "Не указан" : reader.GetString("author");
+                                string author = reader.IsDBNull(2) ? "Не указан" : reader.GetString(2);
                                 
                                 if (!bookDict.ContainsKey(bookId))
                                 {
@@ -379,19 +379,23 @@ namespace LIB
                                         Title = title,
                                         Author = author,
                                         LocalBookID = bookId, // Используем ID из БД
-                                        AddedDate = reader.GetDateTime("added_at"),
-                                        CoverImageSource = GetCoverPlaceholder(reader.IsDBNull(0) ? "" : reader.GetString("local_path"))
+                                        PublishedYear = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                                        Description = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                                        AddedDate = DateTime.Now
                                     };
                                     bookDict[bookId] = book;
                                 }
                                 
                                 // Если есть файл, обновляем информацию о файле
-                                if (!reader.IsDBNull(0))
+                                if (!reader.IsDBNull(5))
                                 {
                                     var book = bookDict[bookId];
-                                    book.BookFileId = reader.GetInt32("file_id");
-                                    book.FilePath = reader.GetString("local_path");
-                                    book.FileName = reader.GetString("file_name");
+                                    book.BookFileId = reader.GetInt32(5);
+                                    book.FilePath = reader.GetString(7);
+                                    book.FileName = reader.GetString(8);
+                                    string format = System.IO.Path.GetExtension(book.FilePath).ToLower().TrimStart('.');
+                                    if (string.IsNullOrEmpty(format)) format = "unknown";
+                                    book.CoverImageSource = GetCoverPlaceholder(format);
                                 }
                             }
                             
@@ -435,10 +439,9 @@ namespace LIB
                                     Id = reader.GetInt32("id"),
                                     BookFileId = reader.GetInt32("book_file_id"),
                                     UserId = reader.GetInt32("user_id"),
-                                    DeviceId = reader.IsDBNull(0) ? "default" : reader.GetString("device_id"),
                                     CurrentPage = reader.GetInt32("current_page"),
-                                    TotalPages = reader.IsDBNull(0) ? 0 : reader.GetInt32("total_pages"),
-                                    ProgressPercent = reader.IsDBNull(0) ? 0 : reader.GetDouble("progress_percent"),
+                                    TotalPages = reader.IsDBNull(5) ? 0 : reader.GetInt32(5),
+                                    ProgressPercent = reader.IsDBNull(6) ? 0 : reader.GetDouble(6),
                                     LastReadAt = reader.GetDateTime("last_read_at")
                                 };
                                 
@@ -520,12 +523,11 @@ namespace LIB
                     {
                         // Вставляем новый прогресс
                         using (var command = new MySqlCommand(
-                            "INSERT INTO reading_progress (book_file_id, user_id, device_id, current_page, total_pages, progress_percent, last_read_at) VALUES (@book_file_id, @user_id, @device_id, @current_page, @total_pages, @progress_percent, @last_read_at)",
+                            "INSERT INTO reading_progress (book_file_id, user_id, current_page, total_pages, progress_percent, last_read_at) VALUES (@book_file_id, @user_id, @current_page, @total_pages, @progress_percent, @last_read_at)",
                             conn))
                         {
                             command.Parameters.AddWithValue("@book_file_id", progress.BookFileId);
                             command.Parameters.AddWithValue("@user_id", progress.UserId);
-                            command.Parameters.AddWithValue("@device_id", progress.DeviceId);
                             command.Parameters.AddWithValue("@current_page", progress.CurrentPage);
                             command.Parameters.AddWithValue("@total_pages", progress.TotalPages);
                             command.Parameters.AddWithValue("@progress_percent", progress.ProgressPercent);
@@ -695,16 +697,13 @@ namespace LIB
                             if (book.BookId == 0)
                             {
                                 using (var command = new MySqlCommand(
-                                    "INSERT INTO books (title, author, series, series_index, language, published_year, description) VALUES (@title, @author, @series, @series_index, @language, @published_year, @description)",
+                                    "INSERT INTO books (title, author, published_year, description) VALUES (@title, @author, @published_year, @description)",
                                     conn, transaction))
                                 {
                                     command.Parameters.AddWithValue("@title", book.Title);
                                     command.Parameters.AddWithValue("@author", book.Author == "Не указан" ? null : book.Author);
-                                    command.Parameters.AddWithValue("@series", (string)null);
-                                    command.Parameters.AddWithValue("@series_index", 0);
-                                    command.Parameters.AddWithValue("@language", (string)null);
-                                    command.Parameters.AddWithValue("@published_year", 0);
-                                    command.Parameters.AddWithValue("@description", (string)null);
+                                    command.Parameters.AddWithValue("@published_year", book.PublishedYear);
+                                    command.Parameters.AddWithValue("@description", string.IsNullOrEmpty(book.Description) ? null : book.Description);
                                     
                                     command.ExecuteNonQuery();
                                     bookId = (int)command.LastInsertedId;
@@ -716,11 +715,13 @@ namespace LIB
                                 bookId = book.BookId;
                                 // Обновляем существующую книгу
                                 using (var command = new MySqlCommand(
-                                    "UPDATE books SET title = @title, author = @author WHERE id = @id",
+                                    "UPDATE books SET title = @title, author = @author, published_year = @published_year, description = @description WHERE id = @id",
                                     conn, transaction))
                                 {
                                     command.Parameters.AddWithValue("@title", book.Title);
                                     command.Parameters.AddWithValue("@author", book.Author == "Не указан" ? null : book.Author);
+                                    command.Parameters.AddWithValue("@published_year", book.PublishedYear);
+                                    command.Parameters.AddWithValue("@description", string.IsNullOrEmpty(book.Description) ? null : book.Description);
                                     command.Parameters.AddWithValue("@id", bookId);
                                     command.ExecuteNonQuery();
                                 }
@@ -729,22 +730,14 @@ namespace LIB
                             // Вставляем файл книги в таблицу book_files
                             if (book.BookFileId == 0)
                             {
-                                string fileExtension = System.IO.Path.GetExtension(book.FilePath).ToLower().TrimStart('.');
-                                if (string.IsNullOrEmpty(fileExtension)) fileExtension = "unknown";
-                                
                                 using (var command = new MySqlCommand(
-                                    "INSERT INTO book_files (book_id, format, source_type, local_path, file_name, file_size_bytes, page_count, added_at, available) VALUES (@book_id, @format, @source_type, @local_path, @file_name, @file_size_bytes, @page_count, @added_at, @available)",
+                                    "INSERT INTO book_files (book_id, source_type, local_path, file_name) VALUES (@book_id, @source_type, @local_path, @file_name)",
                                     conn, transaction))
                                 {
                                     command.Parameters.AddWithValue("@book_id", bookId);
-                                    command.Parameters.AddWithValue("@format", fileExtension);
                                     command.Parameters.AddWithValue("@source_type", "local");
                                     command.Parameters.AddWithValue("@local_path", book.FilePath);
                                     command.Parameters.AddWithValue("@file_name", book.FileName);
-                                    command.Parameters.AddWithValue("@file_size_bytes", new FileInfo(book.FilePath).Length);
-                                    command.Parameters.AddWithValue("@page_count", 0); // Будет обновлено при чтении
-                                    command.Parameters.AddWithValue("@added_at", book.AddedDate);
-                                    command.Parameters.AddWithValue("@available", true);
                                     
                                     command.ExecuteNonQuery();
                                     book.BookFileId = (int)command.LastInsertedId;
@@ -2939,7 +2932,7 @@ namespace LIB
 
                 // Подготовленная команда для защиты от SQL инъекций
                 using (var command = new MySqlCommand(
-                    "SELECT UID FROM Users WHERE User_login = @login AND User_password = @password",
+                    "SELECT UID FROM users WHERE User_login = @login AND User_password = @password",
                     conn))
                 {
                     command.Parameters.AddWithValue("@login", login);
@@ -2997,7 +2990,7 @@ namespace LIB
             {
                 conn.Open();
 
-                using (var command = new MySqlCommand("INSERT INTO Users (User_login, User_password, Is_admin) VALUES (@login, @password, false)", conn))
+                using (var command = new MySqlCommand("INSERT INTO users (User_login, User_password, Is_admin) VALUES (@login, @password, false)", conn))
                 {
                     command.Parameters.AddWithValue("@login", login);
                     command.Parameters.AddWithValue("@password", password);
@@ -3035,6 +3028,129 @@ namespace LIB
             // Показываем главную панель
             WelcomePanel.Visibility = Visibility.Visible;
             UpdateBooksDisplay();
+        }
+
+        /// <summary>
+        /// Добавляет книгу в список чтения пользователя
+        /// </summary>
+        private void AddUserBook(int userId, int bookId, string status = "planned")
+        {
+            try
+            {
+                using (var conn = new MySqlConnection(conectionString))
+                {
+                    conn.Open();
+
+                    using (var command = new MySqlCommand(
+                        "INSERT INTO user_books (user_id, book_id, status) VALUES (@user_id, @book_id, @status) ON DUPLICATE KEY UPDATE status = @status",
+                        conn))
+                    {
+                        command.Parameters.AddWithValue("@user_id", userId);
+                        command.Parameters.AddWithValue("@book_id", bookId);
+                        command.Parameters.AddWithValue("@status", status);
+                        command.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при добавлении книги в список чтения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Обновляет статус книги в списке чтения пользователя
+        /// </summary>
+        private void UpdateUserBookStatus(int userId, int bookId, string status)
+        {
+            try
+            {
+                using (var conn = new MySqlConnection(conectionString))
+                {
+                    conn.Open();
+
+                    using (var command = new MySqlCommand(
+                        "UPDATE user_books SET status = @status WHERE user_id = @user_id AND book_id = @book_id",
+                        conn))
+                    {
+                        command.Parameters.AddWithValue("@user_id", userId);
+                        command.Parameters.AddWithValue("@book_id", bookId);
+                        command.Parameters.AddWithValue("@status", status);
+                        command.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при обновлении статуса книги: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Получает список книг пользователя с их статусами
+        /// </summary>
+        private List<UserBook> GetUserBooks(int userId)
+        {
+            var userBooks = new List<UserBook>();
+            try
+            {
+                using (var conn = new MySqlConnection(conectionString))
+                {
+                    conn.Open();
+
+                    using (var command = new MySqlCommand(
+                        "SELECT * FROM user_books WHERE user_id = @user_id",
+                        conn))
+                    {
+                        command.Parameters.AddWithValue("@user_id", userId);
+
+                        using (var reader = command.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                userBooks.Add(new UserBook
+                                {
+                                    UserId = reader.GetInt32("user_id"),
+                                    BookId = reader.GetInt32("book_id"),
+                                    Status = reader.GetString("status")
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при загрузке списка чтения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            return userBooks;
+        }
+
+        /// <summary>
+        /// Удаляет книгу из списка чтения пользователя
+        /// </summary>
+        private void RemoveUserBook(int userId, int bookId)
+        {
+            try
+            {
+                using (var conn = new MySqlConnection(conectionString))
+                {
+                    conn.Open();
+
+                    using (var command = new MySqlCommand(
+                        "DELETE FROM user_books WHERE user_id = @user_id AND book_id = @book_id",
+                        conn))
+                    {
+                        command.Parameters.AddWithValue("@user_id", userId);
+                        command.Parameters.AddWithValue("@book_id", bookId);
+                        command.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при удалении книги из списка чтения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
     }
 }
