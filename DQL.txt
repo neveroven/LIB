@@ -1,0 +1,68 @@
+use Paradise;
+-- Пользователи
+CREATE TABLE users (
+  UID INTEGER PRIMARY KEY auto_increment,
+  User_login text,
+  User_password integer,
+  Is_admin bool
+);
+
+-- Книги (метаданные)
+CREATE TABLE books (
+  id INTEGER PRIMARY KEY auto_increment,
+  title TEXT NOT NULL,
+  author TEXT,
+  series TEXT,
+  series_index INTEGER,
+  language TEXT,
+  published_year INTEGER,
+  description TEXT
+);
+
+-- Конкретные файлы/форматы книги (локальные/серверные)
+CREATE TABLE book_files (
+  id INTEGER PRIMARY KEY auto_increment,
+  book_id INTEGER NOT NULL,
+  format TEXT NOT NULL,          -- 'fb2','epub','pdf','md','txt','rtf','xml','unknown'
+  source_type TEXT NOT NULL,     -- 'local' | 'server'
+  local_path TEXT,
+  server_uri TEXT,
+  file_name TEXT,
+  file_size_bytes INTEGER,
+  page_count INTEGER,
+  content_hash TEXT,
+  cover_image_uri TEXT,
+  added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  available INTEGER DEFAULT 1,
+
+  FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
+);
+
+-- Список чтения пользователя (связь user ↔ book)
+CREATE TABLE user_books (
+  user_id INTEGER NOT NULL,
+  book_id INTEGER NOT NULL,
+  status TEXT NOT NULL,  -- 'reading','planned','finished','paused','dropped'
+  added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  last_opened_at DATETIME,
+
+  PRIMARY KEY (user_id, book_id),
+  FOREIGN KEY (user_id) REFERENCES users(UID) ON DELETE CASCADE,
+  FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE
+);
+
+-- Прогресс чтения (привязан к пользователю и конкретному файлу)
+CREATE TABLE reading_progress (
+  id INTEGER PRIMARY KEY auto_increment,
+  book_file_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  device_id TEXT,
+  current_page INTEGER NOT NULL DEFAULT 0,
+  total_pages INTEGER,
+  progress_percent REAL,
+  last_read_at DATETIME,
+
+  FOREIGN KEY (book_file_id) REFERENCES book_files(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(UID) ON DELETE CASCADE
+);
+/

@@ -1216,6 +1216,7 @@
                                           HorizontalScrollBarVisibility="Disabled"
                                           ScrollChanged="ScrollViewer_ScrollChanged">
                                 <StackPanel x:Name="BookContentPanel"
+                                            
                                             />
                             </ScrollViewer>
                         </Border>
