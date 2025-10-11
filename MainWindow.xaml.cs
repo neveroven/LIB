@@ -161,7 +161,7 @@ namespace LIB
         private bool isLogin = false;
         private List<Book> books = new List<Book>();
         private int num_index = -1;
-        private int currentUserId = 1; // ID текущего пользователя (по умолчанию 1)
+        private int currentUserId = 0; // ID текущего пользователя (0 = неавторизован/гость)
         private string currentXmlContent = "";
         private void index_found() //Костыль для LocalBookID
         {
@@ -217,6 +217,9 @@ namespace LIB
 
             // Добавляем обработчик для кнопки возврата из грида
             BackToWelcomeButton.Click += BackToWelcome_Click;
+
+            // Кнопка выхода из аккаунта
+            LogoutButton.Click += LogoutButton_Click;
         }
         private void ThemeToggleButton_Click(object sender, RoutedEventArgs e)
         {
@@ -270,6 +273,11 @@ namespace LIB
         {
             try
             {
+                if (currentUserId <= 0)
+                {
+                    MessageBox.Show("Чтобы добавлять книги, войдите в аккаунт.", "Требуется вход", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
                 index_found();
                 // Создаём диалог выбора файла
                 OpenFileDialog openFileDialog = new OpenFileDialog();
@@ -358,9 +366,11 @@ namespace LIB
                         @"SELECT b.id, b.title, b.author, b.published_year, b.description,
                                  bf.id as file_id, bf.source_type, bf.local_path, bf.file_name, bf.cover_image_uri
                           FROM books b
+                          INNER JOIN user_books ub ON ub.book_id = b.id AND ub.user_id = @user_id
                           LEFT JOIN book_files bf ON b.id = bf.book_id
                           ORDER BY b.id, bf.id", conn))
                     {
+                        command.Parameters.AddWithValue("@user_id", currentUserId);
                         using (var reader = command.ExecuteReader())
                         {
                             var bookDict = new Dictionary<int, Book>();
@@ -730,11 +740,14 @@ namespace LIB
                             // Вставляем файл книги в таблицу book_files
                             if (book.BookFileId == 0)
                             {
+                                string format = System.IO.Path.GetExtension(book.FilePath)?.ToLower().TrimStart('.') ?? "unknown";
+                                if (string.IsNullOrWhiteSpace(format)) format = "unknown";
                                 using (var command = new MySqlCommand(
-                                    "INSERT INTO book_files (book_id, source_type, local_path, file_name) VALUES (@book_id, @source_type, @local_path, @file_name)",
+                                    "INSERT INTO book_files (book_id, format, source_type, local_path, file_name) VALUES (@book_id, @format, @source_type, @local_path, @file_name)",
                                     conn, transaction))
                                 {
                                     command.Parameters.AddWithValue("@book_id", bookId);
+                                    command.Parameters.AddWithValue("@format", format);
                                     command.Parameters.AddWithValue("@source_type", "local");
                                     command.Parameters.AddWithValue("@local_path", book.FilePath);
                                     command.Parameters.AddWithValue("@file_name", book.FileName);
@@ -742,6 +755,16 @@ namespace LIB
                                     command.ExecuteNonQuery();
                                     book.BookFileId = (int)command.LastInsertedId;
                                 }
+                            }
+
+                            // Привязываем книгу к текущему пользователю в user_books (если ещё не привязана)
+                            using (var command = new MySqlCommand(
+                                "INSERT INTO user_books (user_id, book_id, status) VALUES (@user_id, @book_id, 'planned') ON DUPLICATE KEY UPDATE status = status",
+                                conn, transaction))
+                            {
+                                command.Parameters.AddWithValue("@user_id", currentUserId);
+                                command.Parameters.AddWithValue("@book_id", bookId);
+                                command.ExecuteNonQuery();
                             }
                             
                             transaction.Commit();
@@ -2067,6 +2090,44 @@ namespace LIB
             currentXmlContent = "";
         }
 
+        private void LogoutButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Сброс состояния приложения и возврат на панель авторизации
+            isLogin = false;
+            currentUserId = 0;
+            books.Clear();
+            readingProgress.Clear();
+            ClearAuthInputs();
+
+            // Скрываем рабочие панели
+            ReadingPanel.Visibility = Visibility.Collapsed;
+            BooksGridPanel.Visibility = Visibility.Collapsed;
+            WelcomePanel.Visibility = Visibility.Collapsed;
+            BackToLibraryButton.Visibility = Visibility.Collapsed;
+
+            // Показываем авторизацию и скрываем навигацию
+            AutorisationPanel.Visibility = Visibility.Visible;
+            NavigationButtons.Visibility = Visibility.Collapsed;
+            BooksButton.Visibility = Visibility.Collapsed;
+            LogoutButton.Visibility = Visibility.Collapsed;
+
+            // Очистка UI списков
+            UpdateBooksDisplay();
+        }
+
+        private void ClearAuthInputs()
+        {
+            try
+            {
+                if (LoginTextBox != null) LoginTextBox.Text = string.Empty;
+                if (PasswordTextBox != null) PasswordTextBox.Password = string.Empty;
+                if (RegisterLoginTextBox != null) RegisterLoginTextBox.Text = string.Empty;
+                if (RegisterPasswordTextBox != null) RegisterPasswordTextBox.Password = string.Empty;
+                if (ConfirmPasswordTextBox != null) ConfirmPasswordTextBox.Password = string.Empty;
+            }
+            catch { }
+        }
+
         /// Увеличивает размер шрифта
 
         private void FontSizeUp_Click(object sender, RoutedEventArgs e)
@@ -2916,6 +2977,7 @@ namespace LIB
                     currentUserId = userId;
                     isLogin = true;
                     AfterLogin();
+                    ClearAuthInputs();
                 }
                 else
                 {
@@ -2968,6 +3030,7 @@ namespace LIB
                         currentUserId = userId;
                         isLogin = true;
                         AfterLogin();
+                        ClearAuthInputs();
                     }
                     else
                     {
@@ -3007,23 +3070,45 @@ namespace LIB
         }
         private void GuestLogin_Click(object sender, RoutedEventArgs e)
         {
-            AfterLogin();
-            isLogin = true;
+            // Гостевой режим: не авторизуемся и не загружаем локальные книги
+            isLogin = false;
+            currentUserId = 0;
+            // Покажем минимальный UI без загрузки книг
+            BooksButton.Visibility = Visibility.Collapsed;
+            NavigationButtons.Visibility = Visibility.Collapsed;
+            LogoutButton.Visibility = Visibility.Collapsed;
+
+            AutorisationPanel.Visibility = Visibility.Collapsed;
+            BackToLibraryButton.Visibility = Visibility.Collapsed;
+            BooksGridPanel.Visibility = Visibility.Collapsed;
+            ReadingPanel.Visibility = Visibility.Collapsed;
+
+            // Очищаем локальные данные и обновляем приветственную панель
+            books.Clear();
+            readingProgress.Clear();
+            WelcomePanel.Visibility = Visibility.Visible;
+            UpdateBooksDisplay();
 
         }
         private void AfterLogin()
         {
             BooksButton.Visibility = Visibility.Visible;
             NavigationButtons.Visibility = Visibility.Visible;
+            LogoutButton.Visibility = Visibility.Visible;
             // Скрываем все панели
             AutorisationPanel.Visibility = Visibility.Collapsed;
             BackToLibraryButton.Visibility = Visibility.Collapsed;
             BooksGridPanel.Visibility = Visibility.Collapsed;
             ReadingPanel.Visibility = Visibility.Collapsed;
 
-            // Перезагружаем данные из БД для текущего пользователя
-            LoadBooksFromDatabase();
-            LoadReadingProgressFromDatabase();
+            // Перезагружаем данные из БД только если есть авторизованный пользователь
+            books.Clear();
+            readingProgress.Clear();
+            if (currentUserId > 0)
+            {
+                LoadBooksFromDatabase();
+                LoadReadingProgressFromDatabase();
+            }
 
             // Показываем главную панель
             WelcomePanel.Visibility = Visibility.Visible;
@@ -3151,6 +3236,11 @@ namespace LIB
             {
                 MessageBox.Show($"Ошибка при удалении книги из списка чтения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            //ThemeToggleButton_Click(sender, e);
         }
     }
 }

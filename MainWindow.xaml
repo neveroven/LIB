@@ -9,7 +9,7 @@
         Height="600" Width="1196"
         MinHeight="500" MinWidth="800"
         WindowStartupLocation="CenterScreen"
-        Background="{DynamicResource WindowBackgroundBrush}">
+        Background="{DynamicResource WindowBackgroundBrush}" Loaded="Window_Loaded">
     
     <Window.Resources>
         <!-- Светлая тема -->
@@ -364,6 +364,19 @@
                         </StackPanel>
                         
                         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button x:Name="LogoutButton"
+                                    Content="Выйти из аккаунта"
+                                    Width="160"
+                                    Height="35"
+                                    Margin="0,0,10,0"
+                                    Background="{DynamicResource ButtonBackgroundBrush}"
+                                    BorderBrush="{DynamicResource ButtonBorderBrush}"
+                                    Foreground="{DynamicResource TextBrush}"
+                                    FontWeight="SemiBold"
+                                    FontSize="13"
+                                    Click="LogoutButton_Click"
+                                    Style="{StaticResource RoundedButtonStyle}"
+                                    Visibility="Collapsed"/>
                             <Button x:Name="ExitButton"
                                     Content="Выход"
                                     Width="90"
