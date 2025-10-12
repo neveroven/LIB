@@ -198,28 +198,6 @@ namespace LIB
 
             // Инициализируем отображение книг
             UpdateBooksDisplay();
-
-            // Добавляем обработчик для кнопки чтения
-            ReadSelectedBookButton.Click += ReadSelectedBook_Click;
-
-            // Добавляем обработчик для кнопки возврата
-            BackToLibraryButton.Click += BackToLibrary_Click;
-
-
-
-            // Добавляем обработчики для кнопок навигации
-            PreviousPageButton.Click += PreviousPage_Click;
-            NextPageButton.Click += NextPage_Click;
-
-            // Добавляем обработчики клавиатуры для навигации по страницам
-            //this.KeyDown += MainWindow_KeyDown;
-            //this.ReadingPanel.KeyDown += MainWindow_KeyDown;
-
-            // Добавляем обработчик для кнопки возврата из грида
-            BackToWelcomeButton.Click += BackToWelcome_Click;
-
-            // Кнопка выхода из аккаунта
-            LogoutButton.Click += LogoutButton_Click;
         }
         private void ThemeToggleButton_Click(object sender, RoutedEventArgs e)
         {
@@ -231,7 +209,7 @@ namespace LIB
                 this.Resources["ButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(255, 218, 185));
                 this.Resources["ButtonBorderBrush"] = new SolidColorBrush(Color.FromRgb(51, 51, 51));
 
-                ThemeToggleButton.Content = "🌙 Тёмная тема";
+
                 isDarkTheme = false;
                 this.InvalidateVisual();
             }
@@ -243,7 +221,7 @@ namespace LIB
                 this.Resources["ButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(64, 64, 64));
                 this.Resources["ButtonBorderBrush"] = new SolidColorBrush(Color.FromRgb(130, 130, 130));
 
-                ThemeToggleButton.Content = "☀️ Светлая тема";
+
                 isDarkTheme = true;
                 this.InvalidateVisual();
             }
@@ -2110,6 +2088,7 @@ namespace LIB
             NavigationButtons.Visibility = Visibility.Collapsed;
             BooksButton.Visibility = Visibility.Collapsed;
             LogoutButton.Visibility = Visibility.Collapsed;
+            SettingsButton.Visibility = Visibility.Collapsed;
 
             // Очистка UI списков
             UpdateBooksDisplay();
@@ -3077,6 +3056,7 @@ namespace LIB
             BooksButton.Visibility = Visibility.Collapsed;
             NavigationButtons.Visibility = Visibility.Collapsed;
             LogoutButton.Visibility = Visibility.Collapsed;
+            SettingsButton.Visibility = Visibility.Collapsed;
 
             AutorisationPanel.Visibility = Visibility.Collapsed;
             BackToLibraryButton.Visibility = Visibility.Collapsed;
@@ -3095,6 +3075,7 @@ namespace LIB
             BooksButton.Visibility = Visibility.Visible;
             NavigationButtons.Visibility = Visibility.Visible;
             LogoutButton.Visibility = Visibility.Visible;
+            SettingsButton.Visibility = Visibility.Visible;
             // Скрываем все панели
             AutorisationPanel.Visibility = Visibility.Collapsed;
             BackToLibraryButton.Visibility = Visibility.Collapsed;
@@ -3238,9 +3219,557 @@ namespace LIB
             }
         }
 
+        /// <summary>
+        /// Обработчик кнопки настроек
+        /// </summary>
+        private void SettingsButton_Click(object sender, RoutedEventArgs e)
+        {
+            ShowSettingsWindow();
+        }
+
+        /// <summary>
+        /// Показывает окно настроек
+        /// </summary>
+        private void ShowSettingsWindow()
+        {
+            var settingsWindow = new Window
+            {
+                Title = "⚙️ Настройки",
+                Width = 800,
+                Height = 700,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                Background = this.Resources["WindowBackgroundBrush"] as SolidColorBrush,
+                ResizeMode = ResizeMode.CanResize,
+                WindowStyle = WindowStyle.ToolWindow,
+                MinWidth = 600,
+                MinHeight = 500
+            };
+
+            // Основной контейнер в стиле приложения
+            var mainContainer = new Border
+            {
+                Background = this.Resources["WindowBackgroundBrush"] as SolidColorBrush,
+                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
+                BorderThickness = new Thickness(2),
+                CornerRadius = new CornerRadius(8),
+                Margin = new Thickness(15)
+            };
+
+            var grid = new Grid();
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            // Заголовок в стиле приложения
+            var headerBorder = new Border
+            {
+                Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
+                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                CornerRadius = new CornerRadius(8, 8, 0, 0),
+                Padding = new Thickness(25, 20, 25, 20)
+            };
+
+            var headerPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+
+            var titleLabel = new TextBlock
+            {
+                Text = "⚙️ Настройки приложения",
+                FontSize = 24,
+                FontWeight = FontWeights.Bold,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+
+            var subtitleLabel = new TextBlock
+            {
+                Text = "Персонализируйте ваш опыт работы с Paradise",
+                FontSize = 14,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                Opacity = 0.8,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 5, 0, 0)
+            };
+
+            var titleStack = new StackPanel();
+            titleStack.Children.Add(titleLabel);
+            titleStack.Children.Add(subtitleLabel);
+            headerPanel.Children.Add(titleStack);
+            headerBorder.Child = headerPanel;
+            grid.Children.Add(headerBorder);
+            Grid.SetRow(headerBorder, 0);
+
+            // Основная панель с настройками
+            var scrollViewer = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Padding = new Thickness(25, 20, 25, 10),
+                Background = Brushes.Transparent
+            };
+
+            var stackPanel = new StackPanel();
+            
+            // Раздел "Внешний вид" с улучшенным дизайном
+            var appearanceGroup = CreateModernSettingsGroup("🎨 Внешний вид", stackPanel);
+            
+            // Переключатель темы с современным дизайном
+            var themePanel = CreateModernSettingRow("🌙 Тёмная тема", "Переключение между светлой и тёмной темой", appearanceGroup);
+            var themeToggle = CreateModernToggle(isDarkTheme);
+            themeToggle.Checked += (s, e) => { isDarkTheme = true; ApplyTheme(); };
+            themeToggle.Unchecked += (s, e) => { isDarkTheme = false; ApplyTheme(); };
+            themePanel.Children.Add(themeToggle);
+
+            // Прозрачность окна с красивым слайдером
+            var opacityPanel = CreateModernSettingRow("🔍 Прозрачность окна", "Настройка прозрачности основного окна", appearanceGroup);
+            var opacityContainer = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            
+            var opacitySlider = CreateModernSlider(0.7, 1.0, 1.0, 200);
+            var opacityValue = new TextBlock
+            {
+                Text = "100%",
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                VerticalAlignment = VerticalAlignment.Center,
+                Width = 50,
+                Margin = new Thickness(15, 0, 0, 0)
+            };
+            opacitySlider.ValueChanged += (s, e) => 
+            {
+                opacityValue.Text = $"{(int)(e.NewValue * 100)}%";
+                this.Opacity = e.NewValue;
+            };
+            
+            opacityContainer.Children.Add(opacitySlider);
+            opacityContainer.Children.Add(opacityValue);
+            opacityPanel.Children.Add(opacityContainer);
+
+            // Раздел "Чтение" с улучшенным дизайном
+            var readingGroup = CreateModernSettingsGroup("📖 Настройки чтения", stackPanel);
+            
+            // Размер шрифта
+            var fontSizePanel = CreateModernSettingRow("📝 Размер шрифта", "Настройка размера текста для комфортного чтения", readingGroup);
+            var fontSizeContainer = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            
+            var fontSizeSlider = CreateModernSlider(10, 32, 18, 250);
+            var fontSizeValue = new TextBlock
+            {
+                Text = "18px",
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                VerticalAlignment = VerticalAlignment.Center,
+                Width = 60,
+                Margin = new Thickness(15, 0, 0, 0)
+            };
+            fontSizeSlider.ValueChanged += (s, e) => fontSizeValue.Text = $"{(int)e.NewValue}px";
+            
+            fontSizeContainer.Children.Add(fontSizeSlider);
+            fontSizeContainer.Children.Add(fontSizeValue);
+            fontSizePanel.Children.Add(fontSizeContainer);
+
+            // Межстрочный интервал
+            var lineHeightPanel = CreateModernSettingRow("📏 Межстрочный интервал", "Настройка расстояния между строками", readingGroup);
+            var lineHeightContainer = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            
+            var lineHeightSlider = CreateModernSlider(1.0, 2.5, 1.5, 250);
+            var lineHeightValue = new TextBlock
+            {
+                Text = "1.5x",
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                VerticalAlignment = VerticalAlignment.Center,
+                Width = 50,
+                Margin = new Thickness(15, 0, 0, 0)
+            };
+            lineHeightSlider.ValueChanged += (s, e) => lineHeightValue.Text = $"{e.NewValue:F1}x";
+            
+            lineHeightContainer.Children.Add(lineHeightSlider);
+            lineHeightContainer.Children.Add(lineHeightValue);
+            lineHeightPanel.Children.Add(lineHeightContainer);
+
+            // Автосохранение прогресса
+            var autoSavePanel = CreateModernSettingRow("💾 Автосохранение прогресса", "Автоматическое сохранение прогресса чтения", readingGroup);
+            var autoSaveToggle = CreateModernToggle(true);
+            autoSavePanel.Children.Add(autoSaveToggle);
+
+            // Автопрокрутка
+            var autoScrollPanel = CreateModernSettingRow("🔄 Автопрокрутка при чтении", "Автоматическая прокрутка текста во время чтения", readingGroup);
+            var autoScrollToggle = CreateModernToggle(false);
+            autoScrollPanel.Children.Add(autoScrollToggle);
+
+            // Раздел "Интерфейс"
+            var interfaceGroup = CreateModernSettingsGroup("🖥️ Интерфейс", stackPanel);
+            
+            // Показывать прогресс чтения
+            var showProgressPanel = CreateModernSettingRow("📊 Показывать прогресс чтения", "Отображение индикатора прогресса чтения", interfaceGroup);
+            var showProgressToggle = CreateModernToggle(true);
+            showProgressPanel.Children.Add(showProgressToggle);
+
+            // Компактный режим
+            var compactModePanel = CreateModernSettingRow("📱 Компактный режим", "Уменьшенный интерфейс для экономии места", interfaceGroup);
+            var compactModeToggle = CreateModernToggle(false);
+            compactModePanel.Children.Add(compactModeToggle);
+
+            // Анимации
+            var animationsPanel = CreateModernSettingRow("✨ Анимации интерфейса", "Плавные переходы и анимации элементов", interfaceGroup);
+            var animationsToggle = CreateModernToggle(true);
+            animationsPanel.Children.Add(animationsToggle);
+
+            // Раздел "Файлы"
+            var filesGroup = CreateModernSettingsGroup("📁 Файлы", stackPanel);
+            
+            // Автоматическое добавление в библиотеку
+            var autoAddPanel = CreateModernSettingRow("📥 Автоматически добавлять новые файлы", "Автоматическое добавление новых файлов в библиотеку", filesGroup);
+            var autoAddToggle = CreateModernToggle(false);
+            autoAddPanel.Children.Add(autoAddToggle);
+
+            // Показывать скрытые файлы
+            var showHiddenPanel = CreateModernSettingRow("👁️ Показывать скрытые файлы", "Отображение скрытых файлов в списке", filesGroup);
+            var showHiddenToggle = CreateModernToggle(false);
+            showHiddenPanel.Children.Add(showHiddenToggle);
+
+            // Раздел "Уведомления"
+            var notificationsGroup = CreateModernSettingsGroup("🔔 Уведомления", stackPanel);
+            
+            // Звуковые уведомления
+            var soundPanel = CreateModernSettingRow("🔊 Звуковые уведомления", "Воспроизведение звуков при уведомлениях", notificationsGroup);
+            var soundToggle = CreateModernToggle(true);
+            soundPanel.Children.Add(soundToggle);
+
+            // Уведомления о прогрессе
+            var progressNotifPanel = CreateModernSettingRow("📈 Уведомления о прогрессе", "Уведомления о достижении целей чтения", notificationsGroup);
+            var progressNotifToggle = CreateModernToggle(true);
+            progressNotifPanel.Children.Add(progressNotifToggle);
+
+            // Раздел "О программе"
+            var aboutGroup = CreateModernSettingsGroup("ℹ️ О программе", stackPanel);
+            
+            var aboutText = new TextBlock
+            {
+                Text = "📚 Paradise Library Manager\nВерсия 1.0.0\n\nСистема управления личной библиотекой с поддержкой различных форматов книг и отслеживанием прогресса чтения.\n\nПоддерживаемые форматы:\n• TXT, MD, RTF\n• FB2, XML\n• PDF\n• DOC, DOCX",
+                FontSize = 13,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 10, 0, 10),
+                LineHeight = 20
+            };
+            aboutGroup.Children.Add(aboutText);
+
+            // Кнопка "Проверить обновления"
+            var checkUpdatesButton = CreateModernButton("🔄 Проверить обновления", 180, 35);
+            checkUpdatesButton.Click += (s, e) => 
+            {
+                MessageBox.Show("Вы используете последнюю версию приложения!", "Обновления", 
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            };
+            aboutGroup.Children.Add(checkUpdatesButton);
+
+            scrollViewer.Content = stackPanel;
+            Grid.SetRow(scrollViewer, 1);
+            grid.Children.Add(scrollViewer);
+
+            // Панель кнопок в стиле приложения
+            var buttonPanel = new Border
+            {
+                Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
+                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
+                BorderThickness = new Thickness(0, 1, 0, 0),
+                CornerRadius = new CornerRadius(0, 0, 8, 8),
+                Padding = new Thickness(25, 15, 25, 15),
+                Margin = new Thickness(0, 15, 0, 0)
+            };
+
+            var buttonStack = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+
+            var resetButton = CreateModernButton("🔄 Сбросить", 130, 45);
+            var exportButton = CreateModernButton("📤 Экспорт", 130, 45);
+            var closeButton = CreateModernButton("✅ Закрыть", 130, 45);
+
+            resetButton.Margin = new Thickness(0, 0, 15, 0);
+            exportButton.Margin = new Thickness(0, 0, 15, 0);
+
+            buttonStack.Children.Add(resetButton);
+            buttonStack.Children.Add(exportButton);
+            buttonStack.Children.Add(closeButton);
+
+            buttonPanel.Child = buttonStack;
+            Grid.SetRow(buttonPanel, 2);
+            grid.Children.Add(buttonPanel);
+
+            mainContainer.Child = grid;
+            settingsWindow.Content = mainContainer;
+
+            // Обработчики кнопок
+            resetButton.Click += (s, e) =>
+            {
+                var result = MessageBox.Show("Вы уверены, что хотите сбросить все настройки к значениям по умолчанию?",
+                    "Сброс настроек", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (result == MessageBoxResult.Yes)
+                {
+                    ResetSettings();
+                    settingsWindow.Close();
+                    MessageBox.Show("Настройки сброшены к значениям по умолчанию.", "Настройки сброшены", 
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            };
+
+            exportButton.Click += (s, e) =>
+            {
+                MessageBox.Show("Экспорт настроек будет доступен в следующих версиях.", "Экспорт", 
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            };
+
+            closeButton.Click += (s, e) => settingsWindow.Close();
+
+            // Показываем окно
+            settingsWindow.ShowDialog();
+        }
+
+
+        /// Создает группу настроек с заголовком
+
+        private StackPanel CreateSettingsGroup(string title, StackPanel parent)
+        {
+            var group = new StackPanel
+            {
+                Margin = new Thickness(0, 0, 0, 25)
+            };
+
+            var titleLabel = new TextBlock
+            {
+                Text = title,
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                Margin = new Thickness(0, 0, 0, 15)
+            };
+
+            group.Children.Add(titleLabel);
+            parent.Children.Add(group);
+            return group;
+        }
+
+
+        /// Создает строку настройки с лейблом
+
+        private StackPanel CreateSettingRow(string labelText, StackPanel parent)
+        {
+            var rowPanel = new StackPanel 
+            { 
+                Orientation = Orientation.Horizontal, 
+                Margin = new Thickness(0, 8, 0, 8),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            var label = new TextBlock
+            {
+                Text = labelText,
+                FontSize = 14,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                VerticalAlignment = VerticalAlignment.Center,
+                Width = 200,
+                TextWrapping = TextWrapping.Wrap
+            };
+
+            rowPanel.Children.Add(label);
+            parent.Children.Add(rowPanel);
+            return rowPanel;
+        }
+
+        /// <summary>
+        /// Создает группу настроек в стиле приложения
+        /// </summary>
+        private StackPanel CreateModernSettingsGroup(string title, StackPanel parent)
+        {
+            var groupBorder = new Border
+            {
+                Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
+                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Margin = new Thickness(0, 0, 0, 15),
+                Padding = new Thickness(15, 12, 15, 12)
+            };
+
+            var group = new StackPanel();
+
+            var titleLabel = new TextBlock
+            {
+                Text = title,
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+
+            group.Children.Add(titleLabel);
+            groupBorder.Child = group;
+            parent.Children.Add(groupBorder);
+            return group;
+        }
+
+        /// <summary>
+        /// Создает строку настройки в стиле приложения
+        /// </summary>
+        private StackPanel CreateModernSettingRow(string title, string description, StackPanel parent)
+        {
+            var rowPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                Margin = new Thickness(0, 8, 0, 8),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            
+            var titleLabel = new TextBlock
+            {
+                Text = title,
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                VerticalAlignment = VerticalAlignment.Center,
+                Width = 250,
+                TextWrapping = TextWrapping.Wrap
+            };
+
+            var descriptionLabel = new TextBlock
+            {
+                Text = description,
+                FontSize = 11,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                Opacity = 0.7,
+                TextWrapping = TextWrapping.Wrap,
+                VerticalAlignment = VerticalAlignment.Center,
+                Width = 200,
+                Margin = new Thickness(10, 0, 0, 0)
+            };
+
+            var controlPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(10, 0, 0, 0)
+            };
+
+            rowPanel.Children.Add(titleLabel);
+            rowPanel.Children.Add(descriptionLabel);
+            rowPanel.Children.Add(controlPanel);
+            parent.Children.Add(rowPanel);
+            return controlPanel;
+        }
+
+        /// <summary>
+        /// Создает современный переключатель в стиле приложения
+        /// </summary>
+        private CheckBox CreateModernToggle(bool isChecked)
+        {
+            var toggle = new CheckBox
+            {
+                IsChecked = isChecked,
+                FontSize = 14,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Width = 20,
+                Height = 20,
+                Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
+                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush
+            };
+
+            return toggle;
+        }
+
+        /// <summary>
+        /// Создает современный слайдер
+        /// </summary>
+        private Slider CreateModernSlider(double minimum, double maximum, double value, double width)
+        {
+            var slider = new Slider
+            {
+                Minimum = minimum,
+                Maximum = maximum,
+                Value = value,
+                Width = width,
+                Height = 25,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Right
+            };
+
+            // Стилизация слайдера
+            var style = new Style(typeof(Slider));
+            
+            slider.Style = style;
+            return slider;
+        }
+
+        /// <summary>
+        /// Создает кнопку в стиле приложения
+        /// </summary>
+        private Button CreateModernButton(string content, double width, double height)
+        {
+            var button = new Button
+            {
+                Content = content,
+                Width = width,
+                Height = height,
+                Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
+                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Style = this.Resources["RoundedButtonStyle"] as Style
+            };
+
+            return button;
+        }
+
+
+        /// Применяет выбранную тему
+
+        private void ApplyTheme()
+        {
+            if (isDarkTheme)
+            {
+                // Переключение на тёмную тему
+                this.Resources["WindowBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(30, 30, 30));
+                this.Resources["TextBrush"] = new SolidColorBrush(Colors.White);
+                this.Resources["ButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(64, 64, 64));
+                this.Resources["ButtonBorderBrush"] = new SolidColorBrush(Color.FromRgb(130, 130, 130));
+            }
+            else
+            {
+                // Переключение на светлую тему
+                this.Resources["WindowBackgroundBrush"] = new SolidColorBrush(Colors.White);
+                this.Resources["TextBrush"] = new SolidColorBrush(Colors.Black);
+                this.Resources["ButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(255, 218, 185));
+                this.Resources["ButtonBorderBrush"] = new SolidColorBrush(Color.FromRgb(51, 51, 51));
+            }
+            this.InvalidateVisual();
+        }
+        
+        /// Сбрасывает настройки к значениям по умолчанию
+        private void ResetSettings()
+        {
+            isDarkTheme = false;
+            ApplyTheme();
+            // Здесь можно добавить сброс других настроек
+        }
+
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            //ThemeToggleButton_Click(sender, e);
+            ThemeToggleButton_Click(sender, e);
         }
     }
 }

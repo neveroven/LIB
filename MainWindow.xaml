@@ -294,16 +294,7 @@
                     <!-- Разделитель -->
                     <Separator Margin="0,20" Background="{DynamicResource ButtonBorderBrush}"/>
                     
-                    <Button x:Name="ThemeToggleButton"
-                            Content="🌙 Тёмная тема"
-                            Height="40"
-                            Margin="0,5"
-                            Background="{DynamicResource ButtonBackgroundBrush}"
-                            BorderBrush="{DynamicResource ButtonBorderBrush}"
-                            Foreground="{DynamicResource TextBrush}"
-                            Click="ThemeToggleButton_Click"
-                            Style="{StaticResource RoundedButtonStyle}"/>
-                    
+
                     <Button x:Name="SettingsButton"
                             Content="⚙️ Настройки"
                             Height="40"
@@ -312,6 +303,7 @@
                             BorderBrush="{DynamicResource ButtonBorderBrush}"
                             Foreground="{DynamicResource TextBrush}"
                             FontSize="13"
+                            Click="SettingsButton_Click"
                             HorizontalAlignment="Stretch"
                             Style="{StaticResource RoundedButtonStyle}"/>
                     
@@ -653,11 +645,7 @@
                                            HorizontalAlignment="Center"
                                            Foreground="{DynamicResource TextBrush}"
                                            Margin="0,0,0,10"/>
-                                <TextBlock Text="Управляйте книгами в удобном интерфейсе"
-                                           FontSize="16"
-                                           HorizontalAlignment="Center"
-                                           Foreground="{DynamicResource TextBrush}"
-                                           Opacity="0.8"/>
+                                
                             </StackPanel>
                         </Border>
                         
