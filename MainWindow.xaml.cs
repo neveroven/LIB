@@ -185,13 +185,6 @@ namespace LIB
 
             index_found();
             InitializeComponent();
-
-            //// Инициализация тёмной темы по умолчанию
-            //this.Resources["WindowBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(30, 30, 30));
-            //this.Resources["TextBrush"] = new SolidColorBrush(Colors.White);
-            //this.Resources["ButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(64, 64, 64));
-            //this.Resources["ButtonBorderBrush"] = new SolidColorBrush(Color.FromRgb(96, 96, 96));
-
             this.WindowState = WindowState.Maximized;
             this.WindowStyle = WindowStyle.None;
             this.ResizeMode = ResizeMode.NoResize;
@@ -199,33 +192,7 @@ namespace LIB
             // Инициализируем отображение книг
             UpdateBooksDisplay();
         }
-        private void ThemeToggleButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (isDarkTheme)
-            {
-                // Переключение на светлую тему
-                this.Resources["WindowBackgroundBrush"] = new SolidColorBrush(Colors.White);
-                this.Resources["TextBrush"] = new SolidColorBrush(Colors.Black);
-                this.Resources["ButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(255, 218, 185));
-                this.Resources["ButtonBorderBrush"] = new SolidColorBrush(Color.FromRgb(51, 51, 51));
-
-
-                isDarkTheme = false;
-                this.InvalidateVisual();
-            }
-            else
-            {
-                // Переключение на тёмную тему
-                this.Resources["WindowBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(30, 30, 30));
-                this.Resources["TextBrush"] = new SolidColorBrush(Colors.White);
-                this.Resources["ButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(64, 64, 64));
-                this.Resources["ButtonBorderBrush"] = new SolidColorBrush(Color.FromRgb(130, 130, 130));
-
-
-                isDarkTheme = true;
-                this.InvalidateVisual();
-            }
-        }
+        
 
         private void ExitButton_Click(object sender, RoutedEventArgs e)
         {
@@ -2034,18 +2001,68 @@ namespace LIB
         {
             if (sender is ScrollViewer scrollViewer)
             {
-                // Вычисляем прогресс чтения на основе позиции прокрутки
-                double progress = 0;
-
-                if (scrollViewer.ExtentHeight > 0)
+                // Обновляем текущую страницу на основе видимости блоков страниц
+                int newIndex = GetMostVisiblePageIndex(scrollViewer);
+                if (newIndex >= 0 && newIndex < bookPages.Count && newIndex != currentPageIndex)
                 {
-                    progress = (scrollViewer.VerticalOffset / (scrollViewer.ExtentHeight - scrollViewer.ViewportHeight)) * 100;
-                    progress = Math.Max(0, Math.Min(100, progress)); // Ограничиваем от 0 до 100
+                    currentPageIndex = newIndex;
+                    UpdatePageInfo();
+                    UpdateReadingProgressFromPage();
                 }
 
-                UpdateReadingProgress(progress);
-                StatusText.Text = $"Прогресс чтения: {progress:F0}%";
+                // Дополнительно обновляем прогресс от прокрутки, если нет страниц
+                if (bookPages.Count == 0)
+                {
+                    double progress = 0;
+                    if (scrollViewer.ExtentHeight > 0)
+                    {
+                        progress = (scrollViewer.VerticalOffset / (scrollViewer.ExtentHeight - scrollViewer.ViewportHeight)) * 100;
+                        progress = Math.Max(0, Math.Min(100, progress));
+                    }
+                    UpdateReadingProgress(progress);
+                    StatusText.Text = $"Прогресс чтения: {progress:F0}%";
+                }
             }
+        }
+
+        // Определяет индекс страницы, которая сейчас наиболее видима в области прокрутки
+        private int GetMostVisiblePageIndex(ScrollViewer scrollViewer)
+        {
+            var contentPanel = GetBookContentPanel();
+            if (contentPanel == null || contentPanel.Children.Count == 0)
+                return -1;
+
+            // Границы видимой области внутри ScrollViewer
+            double viewportTop = 0;
+            double viewportBottom = scrollViewer.ViewportHeight;
+
+            int bestIndex = -1;
+            double bestVisible = -1;
+
+            for (int i = 0; i < contentPanel.Children.Count; i++)
+            {
+                if (contentPanel.Children[i] is FrameworkElement fe)
+                {
+                    // Позиция элемента относительно ScrollViewer
+                    GeneralTransform transform = fe.TransformToAncestor(scrollViewer);
+                    Point topLeft = transform.Transform(new Point(0, 0));
+                    double elemTop = topLeft.Y;
+                    double elemBottom = elemTop + fe.RenderSize.Height;
+
+                    // Пересечение с видимой областью
+                    double visibleTop = Math.Max(elemTop, viewportTop);
+                    double visibleBottom = Math.Min(elemBottom, viewportBottom);
+                    double visibleHeight = Math.Max(0, visibleBottom - visibleTop);
+
+                    if (visibleHeight > bestVisible)
+                    {
+                        bestVisible = visibleHeight;
+                        bestIndex = i;
+                    }
+                }
+            }
+
+            return bestIndex;
         }
 
         /// Возвращает к главной панели библиотеки
@@ -2087,7 +2104,6 @@ namespace LIB
             AutorisationPanel.Visibility = Visibility.Visible;
             NavigationButtons.Visibility = Visibility.Collapsed;
             BooksButton.Visibility = Visibility.Collapsed;
-            LogoutButton.Visibility = Visibility.Collapsed;
             SettingsButton.Visibility = Visibility.Collapsed;
 
             // Очистка UI списков
@@ -2944,6 +2960,10 @@ namespace LIB
         }
         private void LoginSubmit_Click(object sender, RoutedEventArgs e)
         {
+            LoginClick();
+        }
+        private void LoginClick()
+        {
             // Получаем введённые логин и пароль
             string login = LoginTextBox.Text.Trim();
             string password = PasswordTextBox.Password.Trim();
@@ -2994,6 +3014,10 @@ namespace LIB
 
         private void RegisterSubmit_Click(object sender, RoutedEventArgs e)
         {
+            RegisterClick();
+        }
+        private void RegisterClick()
+        {
             // Получаем введённые логин и пароль
             string login = RegisterLoginTextBox.Text.Trim();
             string password = RegisterPasswordTextBox.Password.Trim();
@@ -3022,7 +3046,6 @@ namespace LIB
                     MessageBox.Show("Пароли не совпадают.");
                 }
             }
-
         }
         private int Register(string login, string password)
         {
@@ -3055,7 +3078,6 @@ namespace LIB
             // Покажем минимальный UI без загрузки книг
             BooksButton.Visibility = Visibility.Collapsed;
             NavigationButtons.Visibility = Visibility.Collapsed;
-            LogoutButton.Visibility = Visibility.Collapsed;
             SettingsButton.Visibility = Visibility.Collapsed;
 
             AutorisationPanel.Visibility = Visibility.Collapsed;
@@ -3074,7 +3096,6 @@ namespace LIB
         {
             BooksButton.Visibility = Visibility.Visible;
             NavigationButtons.Visibility = Visibility.Visible;
-            LogoutButton.Visibility = Visibility.Visible;
             SettingsButton.Visibility = Visibility.Visible;
             // Скрываем все панели
             AutorisationPanel.Visibility = Visibility.Collapsed;
@@ -3241,7 +3262,7 @@ namespace LIB
                 Owner = this,
                 Background = this.Resources["WindowBackgroundBrush"] as SolidColorBrush,
                 ResizeMode = ResizeMode.CanResize,
-                WindowStyle = WindowStyle.ToolWindow,
+                WindowStyle = WindowStyle.None,
                 MinWidth = 600,
                 MinHeight = 500
             };
@@ -3449,6 +3470,38 @@ namespace LIB
             var progressNotifToggle = CreateModernToggle(true);
             progressNotifPanel.Children.Add(progressNotifToggle);
 
+            // Раздел "Аккаунт"
+            var accountGroup = CreateModernSettingsGroup("👤 Аккаунт", stackPanel);
+
+            // Показать текущего пользователя (ID)
+            var userInfoPanel = CreateModernSettingRow("Текущий пользователь", "Идентификатор активного аккаунта", accountGroup);
+            var userInfoText = new TextBlock
+            {
+                Text = currentUserId > 0 ? $"UID: {currentUserId}" : "Гость",
+                FontSize = 14,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            userInfoPanel.Children.Add(userInfoText);
+
+            // Автосинхронизация прогресса (пример настройки аккаунта)
+            var syncPanel = CreateModernSettingRow("Синхронизация прогресса", "Автоматически сохранять прогресс в аккаунте", accountGroup);
+            var syncToggle = CreateModernToggle(true);
+            syncPanel.Children.Add(syncToggle);
+
+            // Кнопка выхода из аккаунта
+            var logoutPanel = CreateModernSettingRow("Выход из аккаунта", "Завершить сеанс и вернуться к авторизации", accountGroup);
+            var logoutButton = CreateModernButton("🚪 Выйти", 120, 35);
+            logoutButton.Click += (s, e) =>
+            {
+                settingsWindow.Close();
+                LogoutButton_Click(s, e);
+            };
+            logoutPanel.Children.Add(logoutButton);
+
+            scrollViewer.Content = stackPanel;
+            Grid.SetRow(scrollViewer, 1);
+            grid.Children.Add(scrollViewer);
             // Раздел "О программе"
             var aboutGroup = CreateModernSettingsGroup("ℹ️ О программе", stackPanel);
             
@@ -3472,9 +3525,7 @@ namespace LIB
             };
             aboutGroup.Children.Add(checkUpdatesButton);
 
-            scrollViewer.Content = stackPanel;
-            Grid.SetRow(scrollViewer, 1);
-            grid.Children.Add(scrollViewer);
+            
 
             // Панель кнопок в стиле приложения
             var buttonPanel = new Border
@@ -3769,7 +3820,30 @@ namespace LIB
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            ThemeToggleButton_Click(sender, e);
+            isDarkTheme = true;
+            ApplyTheme();
+        }
+
+        private void BookScrollViewer_Scroll(object sender, System.Windows.Controls.Primitives.ScrollEventArgs e)
+        {
+
+        }
+
+        private void PasswordTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Enter)
+            {
+                LoginClick();
+            }
+        }
+
+
+        private void RegisterLoginTextBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == System.Windows.Input.Key.Enter)
+            {
+                RegisterClick();
+            }
         }
     }
 }

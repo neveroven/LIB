@@ -295,7 +295,8 @@
                     <Separator Margin="0,20" Background="{DynamicResource ButtonBorderBrush}"/>
                     
 
-                    <Button x:Name="SettingsButton"
+                    <Button x:Name="SettingsButton" 
+                            Visibility="Collapsed"
                             Content="⚙️ Настройки"
                             Height="40"
                             Margin="0,5"
@@ -356,19 +357,6 @@
                         </StackPanel>
                         
                         <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                            <Button x:Name="LogoutButton"
-                                    Content="Выйти из аккаунта"
-                                    Width="160"
-                                    Height="35"
-                                    Margin="0,0,10,0"
-                                    Background="{DynamicResource ButtonBackgroundBrush}"
-                                    BorderBrush="{DynamicResource ButtonBorderBrush}"
-                                    Foreground="{DynamicResource TextBrush}"
-                                    FontWeight="SemiBold"
-                                    FontSize="13"
-                                    Click="LogoutButton_Click"
-                                    Style="{StaticResource RoundedButtonStyle}"
-                                    Visibility="Collapsed"/>
                             <Button x:Name="ExitButton"
                                     Content="Выход"
                                     Width="90"
@@ -503,7 +491,7 @@
                                                  BorderBrush="#CCCCCC"
                                                  BorderThickness="2"
                                                  Foreground="Black"
-                                                 Margin="0,0,0,15"/>
+                                                 Margin="0,0,0,15" KeyDown="PasswordTextBox_KeyDown"/>
                                         
                                         <TextBlock Text="Пароль:"
                                                    FontSize="14"
@@ -517,7 +505,7 @@
                                                      BorderBrush="#CCCCCC"
                                                      BorderThickness="2"
                                                      Foreground="Black"
-                                                     Margin="0,0,0,25"/>
+                                                     Margin="0,0,0,25" KeyDown="PasswordTextBox_KeyDown"/>
                                         
                                         <Button x:Name="LoginSubmitButton"
                                                 Content="Войти"
@@ -555,7 +543,7 @@
                                                  BorderBrush="#CCCCCC"
                                                  BorderThickness="2"
                                                  Foreground="Black"
-                                                 Margin="0,0,0,15"/>
+                                                 Margin="0,0,0,15" KeyDown="RegisterLoginTextBox_KeyDown"/>
                                         
                                         <TextBlock Text="Пароль:"
                                                    FontSize="14"
@@ -569,7 +557,7 @@
                                                      BorderBrush="#CCCCCC"
                                                      BorderThickness="2"
                                                      Foreground="Black"
-                                                     Margin="0,0,0,15"/>
+                                                     Margin="0,0,0,15" KeyDown="RegisterLoginTextBox_KeyDown"/>
                                         
                                         <TextBlock Text="Подтвердите пароль:"
                                                    FontSize="14"
@@ -583,7 +571,7 @@
                                                      BorderBrush="#CCCCCC"
                                                      BorderThickness="2"
                                                      Foreground="Black"
-                                                     Margin="0,0,0,25"/>
+                                                     Margin="0,0,0,25" KeyDown="RegisterLoginTextBox_KeyDown"/>
                                         
                                         <Button x:Name="RegisterSubmitButton"
                                                 Content="Зарегистрироваться"
@@ -1202,6 +1190,8 @@
                             <ScrollViewer x:Name="BookScrollViewer"
                                           VerticalScrollBarVisibility="Auto"
                                           HorizontalScrollBarVisibility="Disabled"
+                                          Padding="10"
+                                          
                                           ScrollChanged="ScrollViewer_ScrollChanged">
                                 <StackPanel x:Name="BookContentPanel"
                                             

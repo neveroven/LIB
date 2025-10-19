@@ -65,4 +65,3 @@ CREATE TABLE reading_progress (
   FOREIGN KEY (book_file_id) REFERENCES book_files(id) ON DELETE CASCADE,
   FOREIGN KEY (user_id) REFERENCES users(UID) ON DELETE CASCADE
 );
-/
