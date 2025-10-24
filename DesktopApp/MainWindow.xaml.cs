@@ -227,7 +227,7 @@ namespace LIB
                 // Создаём диалог выбора файла
                 OpenFileDialog openFileDialog = new OpenFileDialog();
                 openFileDialog.Title = "Выберите книгу для добавления";
-                openFileDialog.Filter = "Все файлы (*.*)|*.*|Текстовые файлы (*.txt)|*.txt|FictionBook (*.fb2)|*.fb2|XML файлы (*.xml)|*.xml|RTF файлы (*.rtf)|*.rtf|Markdown (*.md)|*.md|PDF файлы (*.pdf)|*.pdf|Word документы (*.doc;*.docx)|*.doc;*.docx";
+                openFileDialog.Filter = "Все файлы (*.*)|*.*|Текстовые файлы (*.txt)|*.txt|FictionBook (*.fb2)|*.fb2|XML файлы (*.xml)|*.xml|RTF файлы (*.rtf)|*.rtf|Markdown (*.md)|*.md|PDF файлы (*.pdf)|*.pdf|EPUB файлы (*.epub)|*.epub|Word документы (*.doc;*.docx)|*.doc;*.docx";
                 openFileDialog.FilterIndex = 1;
                 openFileDialog.Multiselect = false;
 
@@ -1107,6 +1107,8 @@ namespace LIB
                     return ReadXmlFile(filePath);
                 case ".pdf":
                     return await ReadPdfFileAsync(filePath);
+                case ".epub":
+                    return await ReadEpubFileAsync(filePath);
                 case ".doc":
                 case ".docx":
                     return ReadWordFile(filePath);
@@ -1140,6 +1142,8 @@ namespace LIB
                     return ReadXmlFile(filePath);
                 case ".pdf":
                     return ReadPdfFile(filePath);
+                case ".epub":
+                    return ReadEpubFile(filePath);
                 case ".doc":
                 case ".docx":
                     return ReadWordFile(filePath);
@@ -1276,6 +1280,159 @@ namespace LIB
                 return $"❌ Ошибка при чтении Word файла: {ex.Message}\n\n" +
                        "Попробуйте проверить целостность файла.";
             }
+        }
+
+        /// Читает EPUB файл (асинхронная версия)
+
+        private async Task<string> ReadEpubFileAsync(string filePath)
+        {
+            return await Task.Run(() => ReadEpubFile(filePath));
+        }
+
+        /// Читает EPUB файл
+
+        private string ReadEpubFile(string filePath)
+        {
+            try
+            {
+                // EPUB файлы - это ZIP архивы с XML содержимым
+                // Простое чтение как ZIP архива
+                using (var archive = System.IO.Compression.ZipFile.OpenRead(filePath))
+                {
+                    var result = new StringBuilder();
+                    
+                    // Ищем файл с метаданными
+                    var metadataEntry = archive.Entries.FirstOrDefault(e => e.Name == "metadata.opf");
+                    if (metadataEntry != null)
+                    {
+                        using (var stream = metadataEntry.Open())
+                        using (var reader = new StreamReader(stream))
+                        {
+                            string metadata = reader.ReadToEnd();
+                            result.AppendLine(ExtractEpubMetadata(metadata));
+                        }
+                    }
+                    
+                    // Ищем файлы с содержимым (обычно в папке OEBPS)
+                    var contentEntries = archive.Entries
+                        .Where(e => e.FullName.StartsWith("OEBPS/") && 
+                                   (e.Name.EndsWith(".html") || e.Name.EndsWith(".xhtml") || e.Name.EndsWith(".htm")))
+                        .OrderBy(e => e.FullName)
+                        .ToList();
+                    
+                    if (contentEntries.Count == 0)
+                    {
+                        // Если нет папки OEBPS, ищем HTML файлы в корне
+                        contentEntries = archive.Entries
+                            .Where(e => e.Name.EndsWith(".html") || e.Name.EndsWith(".xhtml") || e.Name.EndsWith(".htm"))
+                            .OrderBy(e => e.FullName)
+                            .ToList();
+                    }
+                    
+                    result.AppendLine("\n📖 СОДЕРЖАНИЕ:\n");
+                    
+                    foreach (var entry in contentEntries)
+                    {
+                        try
+                        {
+                            using (var stream = entry.Open())
+                            using (var reader = new StreamReader(stream))
+                            {
+                                string content = reader.ReadToEnd();
+                                string cleanContent = CleanHtmlContent(content);
+                                if (!string.IsNullOrWhiteSpace(cleanContent))
+                                {
+                                    result.AppendLine(cleanContent);
+                                    result.AppendLine("\n");
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            result.AppendLine($"❌ Ошибка при чтении файла {entry.Name}: {ex.Message}");
+                        }
+                    }
+                    
+                    return result.ToString();
+                }
+            }
+            catch (Exception ex)
+            {
+                return $"❌ Ошибка при чтении EPUB файла: {ex.Message}\n\n" +
+                       "Попробуйте проверить целостность файла.";
+            }
+        }
+
+        /// Извлекает метаданные из EPUB файла
+
+        private string ExtractEpubMetadata(string metadataXml)
+        {
+            try
+            {
+                var xmlDoc = new System.Xml.XmlDocument();
+                xmlDoc.LoadXml(metadataXml);
+                
+                string title = ExtractXmlValue(xmlDoc, "//dc:title") ?? 
+                              ExtractXmlValue(xmlDoc, "//title") ?? 
+                              "Неизвестно";
+                
+                string author = ExtractXmlValue(xmlDoc, "//dc:creator") ?? 
+                               ExtractXmlValue(xmlDoc, "//creator") ?? 
+                               "Неизвестно";
+                
+                string language = ExtractXmlValue(xmlDoc, "//dc:language") ?? 
+                                 ExtractXmlValue(xmlDoc, "//language") ?? 
+                                 "";
+                
+                string description = ExtractXmlValue(xmlDoc, "//dc:description") ?? 
+                                    ExtractXmlValue(xmlDoc, "//description") ?? 
+                                    "";
+                
+                var result = new StringBuilder();
+                result.AppendLine($"📚 {title}");
+                result.AppendLine($"✍️ Автор: {author}");
+                
+                if (!string.IsNullOrEmpty(language))
+                {
+                    result.AppendLine($"🌐 Язык: {language}");
+                }
+                
+                if (!string.IsNullOrEmpty(description))
+                {
+                    result.AppendLine($"📝 Описание: {description}");
+                }
+                
+                return result.ToString();
+            }
+            catch
+            {
+                return "📚 EPUB Книга\n✍️ Автор: Неизвестно";
+            }
+        }
+
+        /// Очищает HTML содержимое для чтения
+
+        private string CleanHtmlContent(string htmlContent)
+        {
+            if (string.IsNullOrEmpty(htmlContent))
+                return htmlContent;
+
+            // Убираем HTML теги
+            string cleanContent = System.Text.RegularExpressions.Regex.Replace(htmlContent, @"<[^>]+>", " ");
+            
+            // Декодируем HTML entities
+            cleanContent = System.Net.WebUtility.HtmlDecode(cleanContent);
+            
+            // Убираем лишние пробелы и переносы строк
+            cleanContent = System.Text.RegularExpressions.Regex.Replace(cleanContent, @"\s+", " ");
+            
+            // Убираем множественные переносы строк
+            while (cleanContent.Contains("\n\n\n"))
+            {
+                cleanContent = cleanContent.Replace("\n\n\n", "\n\n");
+            }
+            
+            return cleanContent.Trim();
         }
 
         /// Читает FictionBook (.fb2) файл
@@ -1732,12 +1889,7 @@ namespace LIB
                 content = content.Replace("\n\n\n", "\n\n");
             }
 
-            // Ограничиваем длину (чтобы не перегружать интерфейс)
-            const int maxLength = 50000;
-            if (content.Length > maxLength)
-            {
-                content = content.Substring(0, maxLength) + "\n\n... [Файл обрезан для удобства чтения] ...";
-            }
+            
 
             return content;
         }
@@ -2350,6 +2502,8 @@ namespace LIB
                     return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img\\xml.png");
                 case ".pdf":
                     return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img\\pdf.png");
+                case ".epub":
+                    return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img\\epub.png");
                 default:
                     return System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "img\\unknown.png");
             }
@@ -3507,7 +3661,7 @@ namespace LIB
             
             var aboutText = new TextBlock
             {
-                Text = "📚 Paradise Library Manager\nВерсия 1.0.0\n\nСистема управления личной библиотекой с поддержкой различных форматов книг и отслеживанием прогресса чтения.\n\nПоддерживаемые форматы:\n• TXT, MD, RTF\n• FB2, XML\n• PDF\n• DOC, DOCX",
+                Text = "📚 Paradise Library Manager\nВерсия 1.0.0\n\nСистема управления личной библиотекой с поддержкой различных форматов книг и отслеживанием прогресса чтения.\n\nПоддерживаемые форматы:\n• TXT, MD, RTF\n• FB2, XML\n• PDF, EPUB\n• DOC, DOCX",
                 FontSize = 13,
                 Foreground = this.Resources["TextBrush"] as SolidColorBrush,
                 TextWrapping = TextWrapping.Wrap,
