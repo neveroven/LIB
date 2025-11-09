@@ -162,7 +162,9 @@ namespace LIB
         private List<Book> books = new List<Book>();
         private int num_index = -1;
         private int currentUserId = 0; // ID текущего пользователя (0 = неавторизован/гость)
+        private bool isAdmin = false; // Флаг администратора
         private string currentXmlContent = "";
+        private string dbFolderPath = ""; // Путь к папке DB для серверных книг
         private void index_found() //Костыль для LocalBookID
         {
             if (num_index == -1 || books.Count == 0)
@@ -179,6 +181,10 @@ namespace LIB
 
         // Прогресс чтения (теперь по BookFileId)
         private Dictionary<int, ReadingProgress> readingProgress = new Dictionary<int, ReadingProgress>();
+        
+        // Книги из каталога
+        private List<Book> catalogBooks = new List<Book>();
+        private List<Book> filteredCatalogBooks = new List<Book>();
 
         public MainWindow()
         {
@@ -188,6 +194,9 @@ namespace LIB
             this.WindowState = WindowState.Maximized;
             this.WindowStyle = WindowStyle.None;
             this.ResizeMode = ResizeMode.NoResize;
+
+            // Загружаем настройки
+            LoadSettings();
 
             // Инициализируем отображение книг
             UpdateBooksDisplay();
@@ -209,6 +218,8 @@ namespace LIB
                 BackToLibraryButton.Visibility = Visibility.Collapsed;
                 BooksGridPanel.Visibility = Visibility.Collapsed;
                 ReadingPanel.Visibility = Visibility.Collapsed;
+                SettingsPanel.Visibility = Visibility.Collapsed;
+                CatalogPanel.Visibility = Visibility.Collapsed;
                 WelcomePanel.Visibility = Visibility.Visible;
                 UpdateBooksDisplay();
             }
@@ -309,7 +320,7 @@ namespace LIB
                     // Загружаем книги с их файлами
                     using (var command = new MySqlCommand(
                         @"SELECT b.id, b.title, b.author, b.published_year, b.description,
-                                 bf.id as file_id, bf.source_type, bf.local_path, bf.file_name, bf.cover_image_uri
+                                 bf.id as file_id, bf.source_type, bf.local_path, bf.server_uri, bf.file_name, bf.cover_image_uri
                           FROM books b
                           INNER JOIN user_books ub ON ub.book_id = b.id AND ub.user_id = @user_id
                           LEFT JOIN book_files bf ON b.id = bf.book_id
@@ -346,11 +357,61 @@ namespace LIB
                                 {
                                     var book = bookDict[bookId];
                                     book.BookFileId = reader.GetInt32(5);
-                                    book.FilePath = reader.GetString(7);
-                                    book.FileName = reader.GetString(8);
-                                    string format = System.IO.Path.GetExtension(book.FilePath).ToLower().TrimStart('.');
-                                    if (string.IsNullOrEmpty(format)) format = "unknown";
-                                    book.CoverImageSource = GetCoverPlaceholder(format);
+                                    string sourceType = reader.IsDBNull(6) ? "local" : reader.GetString(6);
+                                    
+                                    // Для серверных книг объединяем путь
+                                    if (sourceType == "server")
+                                    {
+                                        string serverUri = reader.IsDBNull(8) ? "" : reader.GetString(8);
+                                        book.FilePath = GetServerBookPath(serverUri);
+                                    }
+                                    else
+                                    {
+                                        book.FilePath = reader.GetString(7); // local_path
+                                    }
+                                    
+                                    book.FileName = reader.GetString(9);
+                                    
+                                    // Обработка обложки из БД
+                                    string coverImageUri = reader.IsDBNull(10) ? "" : reader.GetString(10);
+                                    if (!string.IsNullOrEmpty(coverImageUri))
+                                    {
+                                        // Если это относительный путь, делаем его абсолютным
+                                        if (!System.IO.Path.IsPathRooted(coverImageUri))
+                                        {
+                                            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                                            var libIndex = baseDir.IndexOf("LIB", StringComparison.OrdinalIgnoreCase);
+                                            if (libIndex >= 0)
+                                            {
+                                                var projectRoot = baseDir.Substring(0, libIndex + 3);
+                                                book.CoverImageSource = System.IO.Path.Combine(projectRoot, coverImageUri.Replace('/', '\\'));
+                                            }
+                                            else
+                                            {
+                                                string format = System.IO.Path.GetExtension(book.FilePath).ToLower().TrimStart('.');
+                                                if (string.IsNullOrEmpty(format)) format = "unknown";
+                                                book.CoverImageSource = GetCoverPlaceholder(format);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            book.CoverImageSource = coverImageUri;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        string format = System.IO.Path.GetExtension(book.FilePath).ToLower().TrimStart('.');
+                                        if (string.IsNullOrEmpty(format)) format = "unknown";
+                                        book.CoverImageSource = GetCoverPlaceholder(format);
+                                    }
+                                    
+                                    // Проверяем существование обложки
+                                    if (!string.IsNullOrEmpty(book.CoverImageSource) && !File.Exists(book.CoverImageSource))
+                                    {
+                                        string format = System.IO.Path.GetExtension(book.FilePath).ToLower().TrimStart('.');
+                                        if (string.IsNullOrEmpty(format)) format = "unknown";
+                                        book.CoverImageSource = GetCoverPlaceholder(format);
+                                    }
                                 }
                             }
                             
@@ -365,6 +426,163 @@ namespace LIB
                 MessageBox.Show($"Ошибка при загрузке книг из БД: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
+        /// Загружает доступные книги с сервера (source_type = 'server')
+        private void LoadServerBooks()
+        {
+            try
+            {
+                catalogBooks.Clear();
+                
+                using (var conn = new MySqlConnection(conectionString))
+                {
+                    conn.Open();
+                    
+                    // Загружаем книги с сервера, которые еще не добавлены пользователю
+                    using (var command = new MySqlCommand(
+                        @"SELECT DISTINCT b.id, b.title, b.author, b.published_year, b.description,
+                                 bf.id as file_id, bf.source_type, bf.local_path, bf.server_uri, bf.file_name, 
+                                 bf.cover_image_uri
+                          FROM books b
+                          INNER JOIN book_files bf ON b.id = bf.book_id
+                          WHERE bf.source_type = 'server' 
+                          AND b.id NOT IN (
+                              SELECT book_id FROM user_books WHERE user_id = @user_id
+                          )
+                          ORDER BY b.id", conn))
+                    {
+                        command.Parameters.AddWithValue("@user_id", currentUserId > 0 ? currentUserId : 0);
+                        
+                        using (var reader = command.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                int bookId = reader.GetInt32("id");
+                                string title = reader.GetString("title");
+                                string author = reader.IsDBNull(2) ? "Не указан" : reader.GetString(2);
+                                string serverUri = reader.IsDBNull(8) ? "" : reader.GetString(8);
+                                string coverImageUri = reader.IsDBNull(10) ? "" : reader.GetString(10);
+                                
+                                var book = new Book
+                                {
+                                    BookId = bookId,
+                                    BookFileId = reader.GetInt32(5),
+                                    Title = title,
+                                    Author = author,
+                                    LocalBookID = bookId,
+                                    FilePath = GetServerBookPath(serverUri), // Объединяем путь к папке DB с путем из БД
+                                    FileName = reader.GetString(9),
+                                    PublishedYear = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                                    Description = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                                    AddedDate = DateTime.Now
+                                };
+                                
+                                // Обработка обложки
+                                if (!string.IsNullOrEmpty(coverImageUri))
+                                {
+                                    // Если это относительный путь, делаем его абсолютным
+                                    if (!System.IO.Path.IsPathRooted(coverImageUri))
+                                    {
+                                        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                                        var libIndex = baseDir.IndexOf("LIB", StringComparison.OrdinalIgnoreCase);
+                                        if (libIndex >= 0)
+                                        {
+                                            var projectRoot = baseDir.Substring(0, libIndex + 3);
+                                            book.CoverImageSource = System.IO.Path.Combine(projectRoot, coverImageUri.Replace('/', '\\'));
+                                        }
+                                        else
+                                        {
+                                            book.CoverImageSource = GetCoverPlaceholder(System.IO.Path.GetExtension(book.FileName));
+                                        }
+                                    }
+                                    else
+                                    {
+                                        book.CoverImageSource = coverImageUri;
+                                    }
+                                }
+                                else
+                                {
+                                    string format = System.IO.Path.GetExtension(book.FileName).ToLower().TrimStart('.');
+                                    if (string.IsNullOrEmpty(format)) format = "unknown";
+                                    book.CoverImageSource = GetCoverPlaceholder(format);
+                                }
+                                
+                                // Проверяем существование обложки
+                                if (!string.IsNullOrEmpty(book.CoverImageSource) && !File.Exists(book.CoverImageSource))
+                                {
+                                    book.CoverImageSource = GetCoverPlaceholder(System.IO.Path.GetExtension(book.FileName));
+                                }
+                                
+                                catalogBooks.Add(book);
+                            }
+                        }
+                    }
+                }
+                
+                // Обновляем отображение каталога
+                UpdateCatalogDisplay();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при загрузке книг с сервера: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        
+        /// Обновляет отображение каталога книг
+        private void UpdateCatalogDisplay()
+        {
+            // Применяем фильтр поиска
+            ApplyCatalogFilter();
+            
+            if (CatalogBooksItemsControl != null)
+            {
+                CatalogBooksItemsControl.ItemsSource = null;
+                CatalogBooksItemsControl.ItemsSource = filteredCatalogBooks;
+            }
+            
+            if (NoCatalogBooksText != null)
+            {
+                NoCatalogBooksText.Visibility = filteredCatalogBooks.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            }
+        }
+        
+        /// Применяет фильтр поиска к каталогу книг
+        private void ApplyCatalogFilter()
+        {
+            string searchText = "";
+            
+            if (CatalogSearchTextBox != null)
+            {
+                searchText = CatalogSearchTextBox.Text?.Trim() ?? "";
+            }
+            
+            filteredCatalogBooks.Clear();
+            
+            if (string.IsNullOrWhiteSpace(searchText))
+            {
+                // Если поиск пустой, показываем все книги
+                filteredCatalogBooks.AddRange(catalogBooks);
+            }
+            else
+            {
+                // Фильтруем книги по названию (без учета регистра)
+                string searchLower = searchText.ToLower();
+                foreach (var book in catalogBooks)
+                {
+                    if (book.Title != null && book.Title.ToLower().Contains(searchLower))
+                    {
+                        filteredCatalogBooks.Add(book);
+                    }
+                }
+            }
+        }
+        
+        /// Обработчик изменения текста в поле поиска каталога
+        private void CatalogSearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            UpdateCatalogDisplay();
+        }
+
 
         /// Загружает прогресс чтения из JSON файла
 
@@ -746,6 +964,69 @@ namespace LIB
             }
         }
 
+        /// Открывает панель каталога книг
+        private void CatalogBooksButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Скрываем все панели
+            WelcomePanel.Visibility = Visibility.Collapsed;
+            ReadingPanel.Visibility = Visibility.Collapsed;
+            BooksGridPanel.Visibility = Visibility.Collapsed;
+            SettingsPanel.Visibility = Visibility.Collapsed;
+            BackToLibraryButton.Visibility = Visibility.Collapsed;
+            
+            // Показываем панель каталога
+            CatalogPanel.Visibility = Visibility.Visible;
+            
+            // Очищаем поле поиска
+            if (CatalogSearchTextBox != null)
+            {
+                CatalogSearchTextBox.Text = "";
+            }
+            
+            // Загружаем книги с сервера
+            LoadServerBooks();
+        }
+        
+        /// Возврат из каталога книг
+        private void BackFromCatalog_Click(object sender, RoutedEventArgs e)
+        {
+            CatalogPanel.Visibility = Visibility.Collapsed;
+            WelcomePanel.Visibility = Visibility.Visible;
+        }
+        
+        /// Добавляет книгу из каталога в библиотеку
+        private void AddBookFromCatalog_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.Tag is Book book)
+            {
+                if (currentUserId <= 0)
+                {
+                    MessageBox.Show("Чтобы добавлять книги, войдите в аккаунт.", "Требуется вход", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                
+                try
+                {
+                    // Добавляем книгу пользователю
+                    AddUserBook(currentUserId, book.BookId, "planned");
+                    
+                    MessageBox.Show($"Книга '{book.Title}' добавлена в вашу библиотеку!", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    
+                    // Перезагружаем книги пользователя
+                    LoadBooksFromDatabase();
+                    UpdateBooksDisplay();
+                    
+                    // Удаляем книгу из каталога
+                    catalogBooks.Remove(book);
+                    UpdateCatalogDisplay();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка при добавлении книги: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+        }
+
         /// Двойной клик по книге - открывает панель чтения
 
         private void BooksListBox_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -1015,6 +1296,8 @@ namespace LIB
 
             WelcomePanel.Visibility = Visibility.Collapsed;
             BooksGridPanel.Visibility = Visibility.Collapsed;
+            SettingsPanel.Visibility = Visibility.Collapsed;
+            CatalogPanel.Visibility = Visibility.Collapsed;
             ReadingPanel.Visibility = Visibility.Visible;
             BackToLibraryButton.Visibility = Visibility.Visible;
 
@@ -2223,6 +2506,8 @@ namespace LIB
         {
             // Скрываем панель чтения
             ReadingPanel.Visibility = Visibility.Collapsed;
+            SettingsPanel.Visibility = Visibility.Collapsed;
+            CatalogPanel.Visibility = Visibility.Collapsed;
 
             // Показываем приветственную панель
             WelcomePanel.Visibility = Visibility.Visible;
@@ -2242,8 +2527,10 @@ namespace LIB
             // Сброс состояния приложения и возврат на панель авторизации
             isLogin = false;
             currentUserId = 0;
+            isAdmin = false;
             books.Clear();
             readingProgress.Clear();
+            catalogBooks.Clear();
             ClearAuthInputs();
 
             // Скрываем рабочие панели
@@ -2251,6 +2538,8 @@ namespace LIB
             BooksGridPanel.Visibility = Visibility.Collapsed;
             WelcomePanel.Visibility = Visibility.Collapsed;
             BackToLibraryButton.Visibility = Visibility.Collapsed;
+            SettingsPanel.Visibility = Visibility.Collapsed;
+            CatalogPanel.Visibility = Visibility.Collapsed;
 
             // Показываем авторизацию и скрываем навигацию
             AutorisationPanel.Visibility = Visibility.Visible;
@@ -2653,6 +2942,8 @@ namespace LIB
             // Скрываем все панели
             WelcomePanel.Visibility = Visibility.Collapsed;
             ReadingPanel.Visibility = Visibility.Collapsed;
+            SettingsPanel.Visibility = Visibility.Collapsed;
+            CatalogPanel.Visibility = Visibility.Collapsed;
             BackToLibraryButton.Visibility = Visibility.Collapsed;
             // Показываем панель с гридом книг
             BooksGridPanel.Visibility = Visibility.Visible;
@@ -2667,6 +2958,8 @@ namespace LIB
         {
             // Скрываем панель с гридом
             BooksGridPanel.Visibility = Visibility.Collapsed;
+            SettingsPanel.Visibility = Visibility.Collapsed;
+            CatalogPanel.Visibility = Visibility.Collapsed;
 
             // Показываем главную панель
             WelcomePanel.Visibility = Visibility.Visible;
@@ -2745,114 +3038,201 @@ namespace LIB
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             grid.Margin = new Thickness(30);
 
+            // ScrollViewer для основной области
+            var scrollViewer = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+            };
+
             // Основная панель с полями
             var stackPanel = new StackPanel();
 
-            // Название книги
-            var titleLabel = new TextBlock
+            // Группа "Информация о книге"
+            var bookInfoBorder = new Border
             {
-                Text = "Название книги:",
-                FontSize = 16,
+                Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
+                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Margin = new Thickness(0, 0, 0, 15),
+                Padding = new Thickness(15)
+            };
+
+            var bookInfoGroup = new StackPanel();
+
+            var bookInfoTitle = new TextBlock
+            {
+                Text = "📚 Информация о книге",
+                FontSize = 18,
                 FontWeight = FontWeights.Bold,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            bookInfoGroup.Children.Add(bookInfoTitle);
+
+            // Название книги
+            var titlePanel = new StackPanel
+            {
+                Margin = new Thickness(0, 8, 0, 8)
+            };
+
+            var bookTitleLabel = new TextBlock
+            {
+                Text = "Название:",
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
                 Foreground = this.Resources["TextBrush"] as SolidColorBrush,
                 Margin = new Thickness(0, 0, 0, 8)
             };
-            stackPanel.Children.Add(titleLabel);
 
             var titleTextBox = new TextBox
             {
                 Text = book.Title,
-                FontSize = 16,
+                Height = 35,
+                FontSize = 13,
+                Padding = new Thickness(10, 5, 10, 5),
+                VerticalContentAlignment = VerticalAlignment.Center,
                 Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
-                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
                 BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
-                BorderThickness = new Thickness(1),
-                Padding = new Thickness(15, 12, 15, 12),
-                Margin = new Thickness(0, 0, 0, 20),
-                Height = 45
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush
             };
-            stackPanel.Children.Add(titleTextBox);
+
+            titlePanel.Children.Add(bookTitleLabel);
+            titlePanel.Children.Add(titleTextBox);
+            bookInfoGroup.Children.Add(titlePanel);
 
             // Автор
+            var authorPanel = new StackPanel
+            {
+                Margin = new Thickness(0, 8, 0, 8)
+            };
+
             var authorLabel = new TextBlock
             {
                 Text = "Автор:",
-                FontSize = 16,
-                FontWeight = FontWeights.Bold,
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
                 Foreground = this.Resources["TextBrush"] as SolidColorBrush,
                 Margin = new Thickness(0, 0, 0, 8)
             };
-            stackPanel.Children.Add(authorLabel);
 
             var authorTextBox = new TextBox
             {
                 Text = book.Author,
-                FontSize = 16,
+                FontSize = 13,
+                Height = 35,
+                Padding = new Thickness(10, 5, 10, 5),
+                VerticalContentAlignment = VerticalAlignment.Center,
                 Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
                 Foreground = this.Resources["TextBrush"] as SolidColorBrush,
                 BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
-                BorderThickness = new Thickness(1),
-                Padding = new Thickness(15, 12, 15, 12),
-                Margin = new Thickness(0, 0, 0, 20),
-                Height = 45
+                BorderThickness = new Thickness(1)
             };
-            stackPanel.Children.Add(authorTextBox);
+
+            authorPanel.Children.Add(authorLabel);
+            authorPanel.Children.Add(authorTextBox);
+            bookInfoGroup.Children.Add(authorPanel);
+
+            bookInfoBorder.Child = bookInfoGroup;
+            stackPanel.Children.Add(bookInfoBorder);
+
+            // Группа "Дополнительная информация"
+            var additionalInfoBorder = new Border
+            {
+                Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
+                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Margin = new Thickness(0, 0, 0, 15),
+                Padding = new Thickness(15)
+            };
+
+            var additionalInfoGroup = new StackPanel();
+
+            var additionalInfoTitle = new TextBlock
+            {
+                Text = "ℹ️ Дополнительная информация",
+                FontSize = 18,
+                FontWeight = FontWeights.Bold,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            additionalInfoGroup.Children.Add(additionalInfoTitle);
 
             // Путь к файлу (только для чтения)
+            var filePanel = new StackPanel
+            {
+                Margin = new Thickness(0, 8, 0, 8)
+            };
+
             var fileLabel = new TextBlock
             {
                 Text = "Файл:",
-                FontSize = 16,
-                FontWeight = FontWeights.Bold,
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
                 Foreground = this.Resources["TextBrush"] as SolidColorBrush,
                 Margin = new Thickness(0, 0, 0, 8)
             };
-            stackPanel.Children.Add(fileLabel);
 
             var fileTextBox = new TextBox
             {
                 Text = book.FilePath,
-                FontSize = 14,
+                FontSize = 13,
+                Height = 60,
+                Padding = new Thickness(10, 5, 10, 5),
+                VerticalContentAlignment = VerticalAlignment.Top,
                 Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
                 Foreground = this.Resources["TextBrush"] as SolidColorBrush,
                 BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
                 BorderThickness = new Thickness(1),
-                Padding = new Thickness(15, 12, 15, 12),
-                Margin = new Thickness(0, 0, 0, 20),
                 IsReadOnly = true,
-                TextWrapping = TextWrapping.Wrap,
-                Height = 60
+                TextWrapping = TextWrapping.Wrap
             };
-            stackPanel.Children.Add(fileTextBox);
+
+            filePanel.Children.Add(fileLabel);
+            filePanel.Children.Add(fileTextBox);
+            additionalInfoGroup.Children.Add(filePanel);
 
             // Дата добавления (только для чтения)
+            var datePanel = new StackPanel
+            {
+                Margin = new Thickness(0, 8, 0, 8)
+            };
+
             var dateLabel = new TextBlock
             {
                 Text = "Дата добавления:",
-                FontSize = 16,
-                FontWeight = FontWeights.Bold,
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
                 Foreground = this.Resources["TextBrush"] as SolidColorBrush,
                 Margin = new Thickness(0, 0, 0, 8)
             };
-            stackPanel.Children.Add(dateLabel);
 
             var dateTextBox = new TextBox
             {
                 Text = book.AddedDate.ToString("dd.MM.yyyy HH:mm"),
-                FontSize = 16,
+                FontSize = 13,
+                Height = 35,
+                Padding = new Thickness(10, 5, 10, 5),
+                VerticalContentAlignment = VerticalAlignment.Center,
                 Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
                 Foreground = this.Resources["TextBrush"] as SolidColorBrush,
                 BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
                 BorderThickness = new Thickness(1),
-                Padding = new Thickness(15, 12, 15, 12),
-                Margin = new Thickness(0, 0, 0, 20),
-                IsReadOnly = true,
-                Height = 45
+                IsReadOnly = true
             };
-            stackPanel.Children.Add(dateTextBox);
 
-            Grid.SetRow(stackPanel, 0);
-            grid.Children.Add(stackPanel);
+            datePanel.Children.Add(dateLabel);
+            datePanel.Children.Add(dateTextBox);
+            additionalInfoGroup.Children.Add(datePanel);
+
+            additionalInfoBorder.Child = additionalInfoGroup;
+            stackPanel.Children.Add(additionalInfoBorder);
+
+            scrollViewer.Content = stackPanel;
+            Grid.SetRow(scrollViewer, 0);
+            grid.Children.Add(scrollViewer);
 
             // Панель кнопок
             var buttonPanel = new StackPanel
@@ -3147,20 +3527,24 @@ namespace LIB
 
                 // Подготовленная команда для защиты от SQL инъекций
                 using (var command = new MySqlCommand(
-                    "SELECT UID FROM users WHERE User_login = @login AND User_password = @password",
+                    "SELECT UID, Is_admin FROM users WHERE User_login = @login AND User_password = @password",
                     conn))
                 {
                     command.Parameters.AddWithValue("@login", login);
                     command.Parameters.AddWithValue("@password", password);
 
                     // Выполнение команды и получение результата
-                    var result = command.ExecuteScalar();
-                    conn.Close();
-                    
-                    if (result != null && result != DBNull.Value)
+                    using (var reader = command.ExecuteReader())
                     {
-                        return Convert.ToInt32(result);
+                        if (reader.Read())
+                        {
+                            int userId = reader.GetInt32(0);
+                            isAdmin = !reader.IsDBNull(1) && reader.GetBoolean(1);
+                            conn.Close();
+                            return userId;
+                        }
                     }
+                    conn.Close();
                     return 0;
                 }
             }
@@ -3238,10 +3622,13 @@ namespace LIB
             BackToLibraryButton.Visibility = Visibility.Collapsed;
             BooksGridPanel.Visibility = Visibility.Collapsed;
             ReadingPanel.Visibility = Visibility.Collapsed;
+            SettingsPanel.Visibility = Visibility.Collapsed;
+            CatalogPanel.Visibility = Visibility.Collapsed;
 
             // Очищаем локальные данные и обновляем приветственную панель
             books.Clear();
             readingProgress.Clear();
+            catalogBooks.Clear();
             WelcomePanel.Visibility = Visibility.Visible;
             UpdateBooksDisplay();
 
@@ -3256,10 +3643,16 @@ namespace LIB
             BackToLibraryButton.Visibility = Visibility.Collapsed;
             BooksGridPanel.Visibility = Visibility.Collapsed;
             ReadingPanel.Visibility = Visibility.Collapsed;
+            SettingsPanel.Visibility = Visibility.Collapsed;
+            CatalogPanel.Visibility = Visibility.Collapsed;
+
+            // Загружаем настройки после логина
+            LoadSettings();
 
             // Перезагружаем данные из БД только если есть авторизованный пользователь
             books.Clear();
             readingProgress.Clear();
+            catalogBooks.Clear();
             if (currentUserId > 0)
             {
                 LoadBooksFromDatabase();
@@ -3407,537 +3800,397 @@ namespace LIB
         /// </summary>
         private void ShowSettingsWindow()
         {
-            var settingsWindow = new Window
+            // Скрываем все панели
+            WelcomePanel.Visibility = Visibility.Collapsed;
+            ReadingPanel.Visibility = Visibility.Collapsed;
+            BooksGridPanel.Visibility = Visibility.Collapsed;
+            CatalogPanel.Visibility = Visibility.Collapsed;
+            BackToLibraryButton.Visibility = Visibility.Collapsed;
+            
+            // Показываем панель настроек
+            SettingsPanel.Visibility = Visibility.Visible;
+            
+            // Инициализируем настройки
+            InitializeSettings();
+        }
+        
+        /// <summary>
+        /// Инициализирует значения настроек при открытии панели
+        /// </summary>
+        private void InitializeSettings()
+        {
+            // Устанавливаем текущую тему
+            if (DarkThemeToggle != null)
             {
-                Title = "⚙️ Настройки",
-                Width = 800,
-                Height = 700,
+                DarkThemeToggle.IsChecked = isDarkTheme;
+            }
+            
+            // Устанавливаем прозрачность окна
+            if (OpacitySlider != null)
+            {
+                OpacitySlider.Value = this.Opacity;
+                if (OpacityValueText != null)
+                {
+                    OpacityValueText.Text = $"{(int)(this.Opacity * 100)}%";
+                }
+            }
+            
+            // Устанавливаем информацию о пользователе
+            if (UserInfoText != null)
+            {
+                UserInfoText.Text = currentUserId > 0 ? $"UID: {currentUserId}" : "Гость";
+            }
+            
+            // Устанавливаем размер шрифта из текущего чтения (если есть)
+            if (FontSizeSlider != null)
+            {
+                double currentFontSize = GetCurrentContentFontSize();
+                FontSizeSlider.Value = currentFontSize;
+                if (FontSizeValueText != null)
+                {
+                    FontSizeValueText.Text = $"{(int)currentFontSize}px";
+                }
+            }
+            
+            // Показываем/скрываем админские настройки
+            if (AdminSettingsBorder != null)
+            {
+                AdminSettingsBorder.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
+            }
+            
+            // Загружаем путь к папке DB
+            if (DbFolderPathTextBox != null)
+            {
+                DbFolderPathTextBox.Text = dbFolderPath;
+            }
+        }
+        
+        /// <summary>
+        /// Обработчик кнопки выбора папки DB
+        /// </summary>
+        private void BrowseDbFolderButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Создаем простое окно для выбора папки
+            var folderDialog = new Window
+            {
+                Title = "Выберите папку DB с серверными книгами",
+                Width = 600,
+                Height = 150,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
                 Owner = this,
-                Background = this.Resources["WindowBackgroundBrush"] as SolidColorBrush,
-                ResizeMode = ResizeMode.CanResize,
-                WindowStyle = WindowStyle.None,
-                MinWidth = 600,
-                MinHeight = 500
-            };
-
-            // Основной контейнер в стиле приложения
-            var mainContainer = new Border
-            {
-                Background = this.Resources["WindowBackgroundBrush"] as SolidColorBrush,
-                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
-                BorderThickness = new Thickness(2),
-                CornerRadius = new CornerRadius(8),
-                Margin = new Thickness(15)
+                ResizeMode = ResizeMode.NoResize,
+                Background = this.Resources["WindowBackgroundBrush"] as SolidColorBrush
             };
 
             var grid = new Grid();
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-            // Заголовок в стиле приложения
-            var headerBorder = new Border
-            {
-                Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
-                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
-                BorderThickness = new Thickness(0, 0, 0, 1),
-                CornerRadius = new CornerRadius(8, 8, 0, 0),
-                Padding = new Thickness(25, 20, 25, 20)
-            };
-
-            var headerPanel = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                HorizontalAlignment = HorizontalAlignment.Center
-            };
-
-            var titleLabel = new TextBlock
-            {
-                Text = "⚙️ Настройки приложения",
-                FontSize = 24,
-                FontWeight = FontWeights.Bold,
-                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-
-            var subtitleLabel = new TextBlock
-            {
-                Text = "Персонализируйте ваш опыт работы с Paradise",
-                FontSize = 14,
-                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
-                Opacity = 0.8,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 5, 0, 0)
-            };
-
-            var titleStack = new StackPanel();
-            titleStack.Children.Add(titleLabel);
-            titleStack.Children.Add(subtitleLabel);
-            headerPanel.Children.Add(titleStack);
-            headerBorder.Child = headerPanel;
-            grid.Children.Add(headerBorder);
-            Grid.SetRow(headerBorder, 0);
-
-            // Основная панель с настройками
-            var scrollViewer = new ScrollViewer
-            {
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-                Padding = new Thickness(25, 20, 25, 10),
-                Background = Brushes.Transparent
-            };
+            grid.Margin = new Thickness(20);
 
             var stackPanel = new StackPanel();
             
-            // Раздел "Внешний вид" с улучшенным дизайном
-            var appearanceGroup = CreateModernSettingsGroup("🎨 Внешний вид", stackPanel);
-            
-            // Переключатель темы с современным дизайном
-            var themePanel = CreateModernSettingRow("🌙 Тёмная тема", "Переключение между светлой и тёмной темой", appearanceGroup);
-            var themeToggle = CreateModernToggle(isDarkTheme);
-            themeToggle.Checked += (s, e) => { isDarkTheme = true; ApplyTheme(); };
-            themeToggle.Unchecked += (s, e) => { isDarkTheme = false; ApplyTheme(); };
-            themePanel.Children.Add(themeToggle);
-
-            // Прозрачность окна с красивым слайдером
-            var opacityPanel = CreateModernSettingRow("🔍 Прозрачность окна", "Настройка прозрачности основного окна", appearanceGroup);
-            var opacityContainer = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            
-            var opacitySlider = CreateModernSlider(0.7, 1.0, 1.0, 200);
-            var opacityValue = new TextBlock
-            {
-                Text = "100%",
-                FontSize = 14,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
-                VerticalAlignment = VerticalAlignment.Center,
-                Width = 50,
-                Margin = new Thickness(15, 0, 0, 0)
-            };
-            opacitySlider.ValueChanged += (s, e) => 
-            {
-                opacityValue.Text = $"{(int)(e.NewValue * 100)}%";
-                this.Opacity = e.NewValue;
-            };
-            
-            opacityContainer.Children.Add(opacitySlider);
-            opacityContainer.Children.Add(opacityValue);
-            opacityPanel.Children.Add(opacityContainer);
-
-            // Раздел "Чтение" с улучшенным дизайном
-            var readingGroup = CreateModernSettingsGroup("📖 Настройки чтения", stackPanel);
-            
-            // Размер шрифта
-            var fontSizePanel = CreateModernSettingRow("📝 Размер шрифта", "Настройка размера текста для комфортного чтения", readingGroup);
-            var fontSizeContainer = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            
-            var fontSizeSlider = CreateModernSlider(10, 32, 18, 250);
-            var fontSizeValue = new TextBlock
-            {
-                Text = "18px",
-                FontSize = 14,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
-                VerticalAlignment = VerticalAlignment.Center,
-                Width = 60,
-                Margin = new Thickness(15, 0, 0, 0)
-            };
-            fontSizeSlider.ValueChanged += (s, e) => fontSizeValue.Text = $"{(int)e.NewValue}px";
-            
-            fontSizeContainer.Children.Add(fontSizeSlider);
-            fontSizeContainer.Children.Add(fontSizeValue);
-            fontSizePanel.Children.Add(fontSizeContainer);
-
-            // Межстрочный интервал
-            var lineHeightPanel = CreateModernSettingRow("📏 Межстрочный интервал", "Настройка расстояния между строками", readingGroup);
-            var lineHeightContainer = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            
-            var lineHeightSlider = CreateModernSlider(1.0, 2.5, 1.5, 250);
-            var lineHeightValue = new TextBlock
-            {
-                Text = "1.5x",
-                FontSize = 14,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
-                VerticalAlignment = VerticalAlignment.Center,
-                Width = 50,
-                Margin = new Thickness(15, 0, 0, 0)
-            };
-            lineHeightSlider.ValueChanged += (s, e) => lineHeightValue.Text = $"{e.NewValue:F1}x";
-            
-            lineHeightContainer.Children.Add(lineHeightSlider);
-            lineHeightContainer.Children.Add(lineHeightValue);
-            lineHeightPanel.Children.Add(lineHeightContainer);
-
-            // Автосохранение прогресса
-            var autoSavePanel = CreateModernSettingRow("💾 Автосохранение прогресса", "Автоматическое сохранение прогресса чтения", readingGroup);
-            var autoSaveToggle = CreateModernToggle(true);
-            autoSavePanel.Children.Add(autoSaveToggle);
-
-            // Автопрокрутка
-            var autoScrollPanel = CreateModernSettingRow("🔄 Автопрокрутка при чтении", "Автоматическая прокрутка текста во время чтения", readingGroup);
-            var autoScrollToggle = CreateModernToggle(false);
-            autoScrollPanel.Children.Add(autoScrollToggle);
-
-            // Раздел "Интерфейс"
-            var interfaceGroup = CreateModernSettingsGroup("🖥️ Интерфейс", stackPanel);
-            
-            // Показывать прогресс чтения
-            var showProgressPanel = CreateModernSettingRow("📊 Показывать прогресс чтения", "Отображение индикатора прогресса чтения", interfaceGroup);
-            var showProgressToggle = CreateModernToggle(true);
-            showProgressPanel.Children.Add(showProgressToggle);
-
-            // Компактный режим
-            var compactModePanel = CreateModernSettingRow("📱 Компактный режим", "Уменьшенный интерфейс для экономии места", interfaceGroup);
-            var compactModeToggle = CreateModernToggle(false);
-            compactModePanel.Children.Add(compactModeToggle);
-
-            // Анимации
-            var animationsPanel = CreateModernSettingRow("✨ Анимации интерфейса", "Плавные переходы и анимации элементов", interfaceGroup);
-            var animationsToggle = CreateModernToggle(true);
-            animationsPanel.Children.Add(animationsToggle);
-
-            // Раздел "Файлы"
-            var filesGroup = CreateModernSettingsGroup("📁 Файлы", stackPanel);
-            
-            // Автоматическое добавление в библиотеку
-            var autoAddPanel = CreateModernSettingRow("📥 Автоматически добавлять новые файлы", "Автоматическое добавление новых файлов в библиотеку", filesGroup);
-            var autoAddToggle = CreateModernToggle(false);
-            autoAddPanel.Children.Add(autoAddToggle);
-
-            // Показывать скрытые файлы
-            var showHiddenPanel = CreateModernSettingRow("👁️ Показывать скрытые файлы", "Отображение скрытых файлов в списке", filesGroup);
-            var showHiddenToggle = CreateModernToggle(false);
-            showHiddenPanel.Children.Add(showHiddenToggle);
-
-            // Раздел "Уведомления"
-            var notificationsGroup = CreateModernSettingsGroup("🔔 Уведомления", stackPanel);
-            
-            // Звуковые уведомления
-            var soundPanel = CreateModernSettingRow("🔊 Звуковые уведомления", "Воспроизведение звуков при уведомлениях", notificationsGroup);
-            var soundToggle = CreateModernToggle(true);
-            soundPanel.Children.Add(soundToggle);
-
-            // Уведомления о прогрессе
-            var progressNotifPanel = CreateModernSettingRow("📈 Уведомления о прогрессе", "Уведомления о достижении целей чтения", notificationsGroup);
-            var progressNotifToggle = CreateModernToggle(true);
-            progressNotifPanel.Children.Add(progressNotifToggle);
-
-            // Раздел "Аккаунт"
-            var accountGroup = CreateModernSettingsGroup("👤 Аккаунт", stackPanel);
-
-            // Показать текущего пользователя (ID)
-            var userInfoPanel = CreateModernSettingRow("Текущий пользователь", "Идентификатор активного аккаунта", accountGroup);
-            var userInfoText = new TextBlock
-            {
-                Text = currentUserId > 0 ? $"UID: {currentUserId}" : "Гость",
-                FontSize = 14,
-                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            userInfoPanel.Children.Add(userInfoText);
-
-            // Автосинхронизация прогресса (пример настройки аккаунта)
-            var syncPanel = CreateModernSettingRow("Синхронизация прогресса", "Автоматически сохранять прогресс в аккаунте", accountGroup);
-            var syncToggle = CreateModernToggle(true);
-            syncPanel.Children.Add(syncToggle);
-
-            // Кнопка выхода из аккаунта
-            var logoutPanel = CreateModernSettingRow("Выход из аккаунта", "Завершить сеанс и вернуться к авторизации", accountGroup);
-            var logoutButton = CreateModernButton("🚪 Выйти", 120, 35);
-            logoutButton.Click += (s, e) =>
-            {
-                settingsWindow.Close();
-                LogoutButton_Click(s, e);
-            };
-            logoutPanel.Children.Add(logoutButton);
-
-            scrollViewer.Content = stackPanel;
-            Grid.SetRow(scrollViewer, 1);
-            grid.Children.Add(scrollViewer);
-            // Раздел "О программе"
-            var aboutGroup = CreateModernSettingsGroup("ℹ️ О программе", stackPanel);
-            
-            var aboutText = new TextBlock
-            {
-                Text = "📚 Paradise Library Manager\nВерсия 1.0.0\n\nСистема управления личной библиотекой с поддержкой различных форматов книг и отслеживанием прогресса чтения.\n\nПоддерживаемые форматы:\n• TXT, MD, RTF\n• FB2, XML\n• PDF, EPUB\n• DOC, DOCX",
-                FontSize = 13,
-                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 10, 0, 10),
-                LineHeight = 20
-            };
-            aboutGroup.Children.Add(aboutText);
-
-            // Кнопка "Проверить обновления"
-            var checkUpdatesButton = CreateModernButton("🔄 Проверить обновления", 180, 35);
-            checkUpdatesButton.Click += (s, e) => 
-            {
-                MessageBox.Show("Вы используете последнюю версию приложения!", "Обновления", 
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-            };
-            aboutGroup.Children.Add(checkUpdatesButton);
-
-            
-
-            // Панель кнопок в стиле приложения
-            var buttonPanel = new Border
-            {
-                Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
-                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
-                BorderThickness = new Thickness(0, 1, 0, 0),
-                CornerRadius = new CornerRadius(0, 0, 8, 8),
-                Padding = new Thickness(25, 15, 25, 15),
-                Margin = new Thickness(0, 15, 0, 0)
-            };
-
-            var buttonStack = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                HorizontalAlignment = HorizontalAlignment.Right
-            };
-
-            var resetButton = CreateModernButton("🔄 Сбросить", 130, 45);
-            var exportButton = CreateModernButton("📤 Экспорт", 130, 45);
-            var closeButton = CreateModernButton("✅ Закрыть", 130, 45);
-
-            resetButton.Margin = new Thickness(0, 0, 15, 0);
-            exportButton.Margin = new Thickness(0, 0, 15, 0);
-
-            buttonStack.Children.Add(resetButton);
-            buttonStack.Children.Add(exportButton);
-            buttonStack.Children.Add(closeButton);
-
-            buttonPanel.Child = buttonStack;
-            Grid.SetRow(buttonPanel, 2);
-            grid.Children.Add(buttonPanel);
-
-            mainContainer.Child = grid;
-            settingsWindow.Content = mainContainer;
-
-            // Обработчики кнопок
-            resetButton.Click += (s, e) =>
-            {
-                var result = MessageBox.Show("Вы уверены, что хотите сбросить все настройки к значениям по умолчанию?",
-                    "Сброс настроек", MessageBoxButton.YesNo, MessageBoxImage.Question);
-                if (result == MessageBoxResult.Yes)
-                {
-                    ResetSettings();
-                    settingsWindow.Close();
-                    MessageBox.Show("Настройки сброшены к значениям по умолчанию.", "Настройки сброшены", 
-                        MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-            };
-
-            exportButton.Click += (s, e) =>
-            {
-                MessageBox.Show("Экспорт настроек будет доступен в следующих версиях.", "Экспорт", 
-                    MessageBoxButton.OK, MessageBoxImage.Information);
-            };
-
-            closeButton.Click += (s, e) => settingsWindow.Close();
-
-            // Показываем окно
-            settingsWindow.ShowDialog();
-        }
-
-
-        /// Создает группу настроек с заголовком
-
-        private StackPanel CreateSettingsGroup(string title, StackPanel parent)
-        {
-            var group = new StackPanel
-            {
-                Margin = new Thickness(0, 0, 0, 25)
-            };
-
-            var titleLabel = new TextBlock
-            {
-                Text = title,
-                FontSize = 18,
-                FontWeight = FontWeights.Bold,
-                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
-                Margin = new Thickness(0, 0, 0, 15)
-            };
-
-            group.Children.Add(titleLabel);
-            parent.Children.Add(group);
-            return group;
-        }
-
-
-        /// Создает строку настройки с лейблом
-
-        private StackPanel CreateSettingRow(string labelText, StackPanel parent)
-        {
-            var rowPanel = new StackPanel 
-            { 
-                Orientation = Orientation.Horizontal, 
-                Margin = new Thickness(0, 8, 0, 8),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-
             var label = new TextBlock
             {
-                Text = labelText,
+                Text = "Введите путь к папке DB:",
                 FontSize = 14,
-                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
-                VerticalAlignment = VerticalAlignment.Center,
-                Width = 200,
-                TextWrapping = TextWrapping.Wrap
-            };
-
-            rowPanel.Children.Add(label);
-            parent.Children.Add(rowPanel);
-            return rowPanel;
-        }
-
-        /// <summary>
-        /// Создает группу настроек в стиле приложения
-        /// </summary>
-        private StackPanel CreateModernSettingsGroup(string title, StackPanel parent)
-        {
-            var groupBorder = new Border
-            {
-                Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
-                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(6),
-                Margin = new Thickness(0, 0, 0, 15),
-                Padding = new Thickness(15, 12, 15, 12)
-            };
-
-            var group = new StackPanel();
-
-            var titleLabel = new TextBlock
-            {
-                Text = title,
-                FontSize = 18,
-                FontWeight = FontWeights.Bold,
+                FontWeight = FontWeights.SemiBold,
                 Foreground = this.Resources["TextBrush"] as SolidColorBrush,
                 Margin = new Thickness(0, 0, 0, 10)
             };
-
-            group.Children.Add(titleLabel);
-            groupBorder.Child = group;
-            parent.Children.Add(groupBorder);
-            return group;
-        }
-
-        /// <summary>
-        /// Создает строку настройки в стиле приложения
-        /// </summary>
-        private StackPanel CreateModernSettingRow(string title, string description, StackPanel parent)
-        {
-            var rowPanel = new StackPanel
+            
+            var pathTextBox = new TextBox
             {
-                Orientation = Orientation.Horizontal,
-                Margin = new Thickness(0, 8, 0, 8),
-                VerticalAlignment = VerticalAlignment.Center
+                Height = 35,
+                FontSize = 13,
+                Padding = new Thickness(0,0,10, 5),
+                VerticalContentAlignment = VerticalAlignment.Center,
+                Background = new SolidColorBrush(Colors.White),
+                BorderBrush = new SolidColorBrush(Color.FromRgb(204, 204, 204)),
+                BorderThickness = new Thickness(2),
+                Foreground = new SolidColorBrush(Colors.Black),
+                Text = dbFolderPath
             };
             
-            var titleLabel = new TextBlock
-            {
-                Text = title,
-                FontSize = 14,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
-                VerticalAlignment = VerticalAlignment.Center,
-                Width = 250,
-                TextWrapping = TextWrapping.Wrap
-            };
+            stackPanel.Children.Add(label);
+            stackPanel.Children.Add(pathTextBox);
+            Grid.SetRow(stackPanel, 0);
+            grid.Children.Add(stackPanel);
 
-            var descriptionLabel = new TextBlock
-            {
-                Text = description,
-                FontSize = 11,
-                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
-                Opacity = 0.7,
-                TextWrapping = TextWrapping.Wrap,
-                VerticalAlignment = VerticalAlignment.Center,
-                Width = 200,
-                Margin = new Thickness(10, 0, 0, 0)
-            };
-
-            var controlPanel = new StackPanel
+            var buttonPanel = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
                 HorizontalAlignment = HorizontalAlignment.Right,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(10, 0, 0, 0)
+                Margin = new Thickness(0, 15, 0, 0)
             };
 
-            rowPanel.Children.Add(titleLabel);
-            rowPanel.Children.Add(descriptionLabel);
-            rowPanel.Children.Add(controlPanel);
-            parent.Children.Add(rowPanel);
-            return controlPanel;
-        }
-
-        /// <summary>
-        /// Создает современный переключатель в стиле приложения
-        /// </summary>
-        private CheckBox CreateModernToggle(bool isChecked)
-        {
-            var toggle = new CheckBox
+            var okButton = new Button
             {
-                IsChecked = isChecked,
-                FontSize = 14,
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                Width = 20,
-                Height = 20,
-                Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
-                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
-                Foreground = this.Resources["TextBrush"] as SolidColorBrush
-            };
-
-            return toggle;
-        }
-
-        /// <summary>
-        /// Создает современный слайдер
-        /// </summary>
-        private Slider CreateModernSlider(double minimum, double maximum, double value, double width)
-        {
-            var slider = new Slider
-            {
-                Minimum = minimum,
-                Maximum = maximum,
-                Value = value,
-                Width = width,
-                Height = 25,
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = HorizontalAlignment.Right
-            };
-
-            // Стилизация слайдера
-            var style = new Style(typeof(Slider));
-            
-            slider.Style = style;
-            return slider;
-        }
-
-        /// <summary>
-        /// Создает кнопку в стиле приложения
-        /// </summary>
-        private Button CreateModernButton(string content, double width, double height)
-        {
-            var button = new Button
-            {
-                Content = content,
-                Width = width,
-                Height = height,
+                Content = "OK",
+                Width = 100,
+                Height = 35,
+                Margin = new Thickness(0, 0, 10, 0),
                 Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
                 BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
                 Foreground = this.Resources["TextBrush"] as SolidColorBrush,
-                FontSize = 14,
-                FontWeight = FontWeights.SemiBold,
                 Style = this.Resources["RoundedButtonStyle"] as Style
             };
 
-            return button;
+            var cancelButton = new Button
+            {
+                Content = "Отмена",
+                Width = 100,
+                Height = 35,
+                Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
+                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                Style = this.Resources["RoundedButtonStyle"] as Style
+            };
+
+            okButton.Click += (s, args) =>
+            {
+                string selectedPath = pathTextBox.Text?.Trim() ?? "";
+                
+                if (!string.IsNullOrEmpty(selectedPath))
+                {
+                    if (!Directory.Exists(selectedPath))
+                    {
+                        MessageBox.Show("Указанная папка не существует. Пожалуйста, укажите корректный путь.", 
+                            "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+                }
+                
+                dbFolderPath = selectedPath;
+                
+                if (DbFolderPathTextBox != null)
+                {
+                    DbFolderPathTextBox.Text = dbFolderPath;
+                }
+                
+                // Сохраняем настройку
+                SaveSettings();
+                
+                // Перезагружаем книги, чтобы применить новый путь
+                if (currentUserId > 0)
+                {
+                    LoadBooksFromDatabase();
+                    UpdateBooksDisplay();
+                }
+                
+                // Если открыт каталог, перезагружаем его
+                if (CatalogPanel != null && CatalogPanel.Visibility == Visibility.Visible)
+                {
+                    LoadServerBooks();
+                }
+                
+                folderDialog.DialogResult = true;
+                folderDialog.Close();
+            };
+
+            cancelButton.Click += (s, args) =>
+            {
+                folderDialog.DialogResult = false;
+                folderDialog.Close();
+            };
+
+            buttonPanel.Children.Add(okButton);
+            buttonPanel.Children.Add(cancelButton);
+            Grid.SetRow(buttonPanel, 1);
+            grid.Children.Add(buttonPanel);
+
+            folderDialog.Content = grid;
+            
+            // Фокус на текстовое поле и Enter для подтверждения
+            pathTextBox.Focus();
+            pathTextBox.KeyDown += (s, args) =>
+            {
+                if (args.Key == Key.Enter)
+                {
+                    okButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                }
+                else if (args.Key == Key.Escape)
+                {
+                    folderDialog.Close();
+                }
+            };
+
+            folderDialog.ShowDialog();
+        }
+        
+        /// <summary>
+        /// Обработчик потери фокуса текстового поля пути к папке DB
+        /// </summary>
+        private void DbFolderPathTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (sender is TextBox textBox)
+            {
+                string newPath = textBox.Text?.Trim() ?? "";
+                
+                // Проверяем, изменился ли путь
+                if (newPath != dbFolderPath)
+                {
+                    // Проверяем существование папки, если путь не пустой
+                    if (!string.IsNullOrEmpty(newPath) && !Directory.Exists(newPath))
+                    {
+                        MessageBox.Show("Указанная папка не существует. Пожалуйста, укажите корректный путь.", 
+                            "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        textBox.Text = dbFolderPath; // Возвращаем старое значение
+                        return;
+                    }
+                    
+                    dbFolderPath = newPath;
+                    SaveSettings();
+                    
+                    // Перезагружаем книги, чтобы применить новый путь
+                    if (currentUserId > 0)
+                    {
+                        LoadBooksFromDatabase();
+                        UpdateBooksDisplay();
+                    }
+                    
+                    // Если открыт каталог, перезагружаем его
+                    if (CatalogPanel != null && CatalogPanel.Visibility == Visibility.Visible)
+                    {
+                        LoadServerBooks();
+                    }
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Обработчик кнопки "Назад" из настроек
+        /// </summary>
+        private void BackFromSettings_Click(object sender, RoutedEventArgs e)
+        {
+            SettingsPanel.Visibility = Visibility.Collapsed;
+            CatalogPanel.Visibility = Visibility.Collapsed;
+            WelcomePanel.Visibility = Visibility.Visible;
+        }
+        
+        /// <summary>
+        /// Обработчик переключения тёмной темы
+        /// </summary>
+        private void DarkThemeToggle_Checked(object sender, RoutedEventArgs e)
+        {
+            isDarkTheme = true;
+            ApplyTheme();
+        }
+        
+        /// <summary>
+        /// Обработчик переключения светлой темы
+        /// </summary>
+        private void DarkThemeToggle_Unchecked(object sender, RoutedEventArgs e)
+        {
+            isDarkTheme = false;
+            ApplyTheme();
+        }
+        
+        /// <summary>
+        /// Обработчик изменения прозрачности окна
+        /// </summary>
+        private void OpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (OpacityValueText != null)
+            {
+                OpacityValueText.Text = $"{(int)(e.NewValue * 100)}%";
+            }
+            this.Opacity = e.NewValue;
+        }
+        
+        /// <summary>
+        /// Обработчик изменения размера шрифта
+        /// </summary>
+        private void FontSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (FontSizeValueText != null)
+            {
+                FontSizeValueText.Text = $"{(int)e.NewValue}px";
+            }
+            
+            // Применяем размер шрифта к текущему чтению, если открыта книга
+            if (ReadingPanel.Visibility == Visibility.Visible)
+            {
+                SetContentFontSize(e.NewValue);
+            }
+        }
+        
+        /// <summary>
+        /// Обработчик изменения межстрочного интервала
+        /// </summary>
+        private void LineHeightSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (LineHeightValueText != null)
+            {
+                LineHeightValueText.Text = $"{e.NewValue:F1}x";
+            }
+            
+            // Применяем межстрочный интервал к текущему чтению, если открыта книга
+            if (ReadingPanel.Visibility == Visibility.Visible)
+            {
+                var contentPanel = GetBookContentPanel();
+                if (contentPanel != null)
+                {
+                    foreach (var child in contentPanel.Children)
+                    {
+                        if (child is TextBlock tb)
+                        {
+                            tb.LineHeight = Math.Round(tb.FontSize * e.NewValue);
+                        }
+                    }
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Обработчик кнопки выхода из аккаунта в настройках
+        /// </summary>
+        private void SettingsLogoutButton_Click(object sender, RoutedEventArgs e)
+        {
+            BackFromSettings_Click(sender, e);
+            LogoutButton_Click(sender, e);
+        }
+        
+        /// <summary>
+        /// Обработчик кнопки сброса настроек
+        /// </summary>
+        private void ResetSettingsButton_Click(object sender, RoutedEventArgs e)
+        {
+            var result = MessageBox.Show("Вы уверены, что хотите сбросить все настройки к значениям по умолчанию?",
+                "Сброс настроек", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (result == MessageBoxResult.Yes)
+            {
+                ResetSettings();
+                InitializeSettings();
+                MessageBox.Show("Настройки сброшены к значениям по умолчанию.", "Настройки сброшены", 
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        
+        /// <summary>
+        /// Обработчик кнопки экспорта настроек
+        /// </summary>
+        private void ExportSettingsButton_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("Экспорт настроек будет доступен в следующих версиях.", "Экспорт", 
+                MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        
+        /// <summary>
+        /// Обработчик кнопки закрытия настроек
+        /// </summary>
+        private void CloseSettingsButton_Click(object sender, RoutedEventArgs e)
+        {
+            BackFromSettings_Click(sender, e);
+        }
+        
+        /// <summary>
+        /// Обработчик кнопки проверки обновлений
+        /// </summary>
+        private void CheckUpdatesButton_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show("Вы используете последнюю версию приложения!", "Обновления", 
+                MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
 
@@ -3969,13 +4222,99 @@ namespace LIB
         {
             isDarkTheme = false;
             ApplyTheme();
-            // Здесь можно добавить сброс других настроек
+            
+            // Сбрасываем значения в UI элементах
+            if (DarkThemeToggle != null)
+            {
+                DarkThemeToggle.IsChecked = false;
+            }
+            
+            if (OpacitySlider != null)
+            {
+                OpacitySlider.Value = 1.0;
+                this.Opacity = 1.0;
+            }
+            
+            if (FontSizeSlider != null)
+            {
+                FontSizeSlider.Value = 18;
+            }
+            
+            if (LineHeightSlider != null)
+            {
+                LineHeightSlider.Value = 1.5;
+            }
+            
+            if (AutoSaveToggle != null)
+            {
+                AutoSaveToggle.IsChecked = true;
+            }
+            
+            if (AutoScrollToggle != null)
+            {
+                AutoScrollToggle.IsChecked = false;
+            }
+            
+            if (ShowProgressToggle != null)
+            {
+                ShowProgressToggle.IsChecked = true;
+            }
+            
+            if (CompactModeToggle != null)
+            {
+                CompactModeToggle.IsChecked = false;
+            }
+            
+            if (AnimationsToggle != null)
+            {
+                AnimationsToggle.IsChecked = true;
+            }
+            
+            if (AutoAddToggle != null)
+            {
+                AutoAddToggle.IsChecked = false;
+            }
+            
+            if (ShowHiddenToggle != null)
+            {
+                ShowHiddenToggle.IsChecked = false;
+            }
+            
+            if (SoundNotificationsToggle != null)
+            {
+                SoundNotificationsToggle.IsChecked = true;
+            }
+            
+            if (ProgressNotificationsToggle != null)
+            {
+                ProgressNotificationsToggle.IsChecked = true;
+            }
+            
+            if (SyncProgressToggle != null)
+            {
+                SyncProgressToggle.IsChecked = true;
+            }
         }
 
-        private void Window_Loaded(object sender, RoutedEventArgs e)
+        private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            isDarkTheme = true;
-            ApplyTheme();
+            LoadingPanel.Visibility = Visibility.Visible;
+
+
+            // Эффект задержки
+            await Task.Delay(1000);
+
+            // Основная инициализация
+            await Task.Run(() =>
+            {
+                Dispatcher.Invoke(() => LoadBooksFromDatabase());
+                Dispatcher.Invoke(() => LoadReadingProgressFromDatabase());
+            });
+
+            LoadingPanel.Visibility = Visibility.Collapsed;
+            AutorisationPanel.Visibility = Visibility.Visible; 
+
+            
         }
 
         private void BookScrollViewer_Scroll(object sender, System.Windows.Controls.Primitives.ScrollEventArgs e)
@@ -3998,6 +4337,107 @@ namespace LIB
             {
                 RegisterClick();
             }
+        }
+        
+        /// <summary>
+        /// Загружает настройки из базы данных
+        /// </summary>
+        private void LoadSettings()
+        {
+            try
+            {
+                using (var conn = new MySqlConnection(conectionString))
+                {
+                    conn.Open();
+                    
+                    // Проверяем, существует ли таблица settings
+                    using (var checkTable = new MySqlCommand(
+                        "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'Paradise' AND table_name = 'settings'",
+                        conn))
+                    {
+                        int tableExists = Convert.ToInt32(checkTable.ExecuteScalar());
+                        
+                        if (tableExists > 0)
+                        {
+                            // Загружаем настройку пути к папке DB
+                            using (var command = new MySqlCommand(
+                                "SELECT setting_value FROM settings WHERE setting_key = 'db_folder_path'",
+                                conn))
+                            {
+                                var result = command.ExecuteScalar();
+                                if (result != null && result != DBNull.Value)
+                                {
+                                    dbFolderPath = result.ToString();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Если таблицы нет или произошла ошибка, используем значение по умолчанию
+                dbFolderPath = "";
+            }
+        }
+        
+        /// <summary>
+        /// Сохраняет настройки в базу данных
+        /// </summary>
+        private void SaveSettings()
+        {
+            try
+            {
+                using (var conn = new MySqlConnection(conectionString))
+                {
+                    conn.Open();
+                    
+                    // Создаем таблицу settings, если её нет
+                    using (var createTable = new MySqlCommand(
+                        @"CREATE TABLE IF NOT EXISTS settings (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            setting_key VARCHAR(100) UNIQUE NOT NULL,
+                            setting_value TEXT
+                        )",
+                        conn))
+                    {
+                        createTable.ExecuteNonQuery();
+                    }
+                    
+                    // Сохраняем настройку пути к папке DB
+                    using (var command = new MySqlCommand(
+                        "INSERT INTO settings (setting_key, setting_value) VALUES ('db_folder_path', @value) " +
+                        "ON DUPLICATE KEY UPDATE setting_value = @value",
+                        conn))
+                    {
+                        command.Parameters.AddWithValue("@value", dbFolderPath ?? "");
+                        command.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при сохранении настроек: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        
+        /// <summary>
+        /// Объединяет путь к папке DB с путем из БД для серверных книг
+        /// </summary>
+        private string GetServerBookPath(string serverUri)
+        {
+            if (string.IsNullOrWhiteSpace(serverUri))
+                return serverUri;
+            
+            if (string.IsNullOrWhiteSpace(dbFolderPath))
+                return serverUri;
+            
+            // Если путь уже абсолютный, возвращаем как есть
+            if (System.IO.Path.IsPathRooted(serverUri))
+                return serverUri;
+            
+            // Объединяем путь к папке DB с путем из БД
+            return System.IO.Path.Combine(dbFolderPath, serverUri.Replace('/', '\\'));
         }
     }
 }

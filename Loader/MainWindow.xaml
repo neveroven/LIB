@@ -1,0 +1,42 @@
+﻿<Window x:Class="Loader.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Loader"
+        mc:Ignorable="d"
+        Title="Загрузчик книг в базу данных" Height="380" Width="640" MinWidth="600" MinHeight="350">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Загрузка книг в базу данных" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,8"/>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,12,0,12">
+            <Button x:Name="DownloadButton" Content="Загрузить книги в БД" Width="200" Height="36" Click="DownloadButton_Click" FontSize="14"/>
+            <TextBlock x:Name="StatusText" Margin="16,0,0,0" VerticalAlignment="Center" Text="Ожидание" FontSize="14"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="2">
+            <TextBlock Text="Прогресс:" FontWeight="SemiBold" Margin="0,0,0,4"/>
+            <ProgressBar x:Name="OverallProgress" Height="22" Minimum="0" Maximum="100"/>
+            <TextBlock x:Name="CurrentItemText" Margin="0,8,0,4" TextWrapping="Wrap" FontSize="12"/>
+            
+            <TextBlock Text="Лог операций:" FontWeight="SemiBold" Margin="0,12,0,4"/>
+            <Border BorderBrush="LightGray" BorderThickness="1" CornerRadius="3" Padding="2">
+                <ScrollViewer Height="150" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl x:Name="LogItems"/>
+                </ScrollViewer>
+            </Border>
+        </StackPanel>
+
+        <StackPanel Grid.Row="3" Margin="0,12,0,0">
+            <TextBlock Foreground="Gray" FontSize="11" Text="Книги будут прочитаны из: DB/ServerBooks/Books/"/>
+            <TextBlock Foreground="Gray" FontSize="11" Text="Обложки будут прочитаны из: DB/ServerBooks/Images/"/>
+        </StackPanel>
+    </Grid>
+</Window>
