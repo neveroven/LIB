@@ -1,3 +1,4 @@
+Create database Paradise;
 use Paradise;
 -- Пользователи
 CREATE TABLE users (
@@ -64,4 +65,21 @@ CREATE TABLE reading_progress (
 
   FOREIGN KEY (book_file_id) REFERENCES book_files(id) ON DELETE CASCADE,
   FOREIGN KEY (user_id) REFERENCES users(UID) ON DELETE CASCADE
+);
+-- Таблица для хранения настроек системы
+CREATE TABLE IF NOT EXISTS settings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    setting_key VARCHAR(100) UNIQUE NOT NULL,
+    setting_value TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Таблица для хранения настроек системы
+CREATE TABLE IF NOT EXISTS settings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    setting_key VARCHAR(100) UNIQUE NOT NULL,
+    setting_value TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );

@@ -813,28 +813,31 @@ namespace LIB
                                     command.ExecuteNonQuery();
                                 }
                             }
-                            
-                            // Удаляем файлы книги
-                            if (book.BookId > 0)
-                            {
-                                using (var command = new MySqlCommand(
-                                    "DELETE FROM book_files WHERE book_id = @book_id",
-                                    conn, transaction))
-                                {
-                                    command.Parameters.AddWithValue("@book_id", book.BookId);
-                                    command.ExecuteNonQuery();
-                                }
-                                
-                                // Удаляем саму книгу
-                                using (var command = new MySqlCommand(
-                                    "DELETE FROM books WHERE id = @id",
-                                    conn, transaction))
-                                {
-                                    command.Parameters.AddWithValue("@id", book.BookId);
-                                    command.ExecuteNonQuery();
-                                }
-                            }
-                            
+                            books.Remove(book);
+                            catalogBooks.Remove(book);
+                            UpdateBooksDisplay();
+                            UpdateBooksGridDisplay();
+                            //// Удаляем файлы книги
+                            //if (book.BookId > 0)
+                            //{
+                            //    using (var command = new MySqlCommand(
+                            //        "DELETE FROM book_files WHERE book_id = @book_id",
+                            //        conn, transaction))
+                            //    {
+                            //        command.Parameters.AddWithValue("@book_id", book.BookId);
+                            //        command.ExecuteNonQuery();
+                            //    }
+
+                            //    // Удаляем саму книгу
+                            //    using (var command = new MySqlCommand(
+                            //        "DELETE FROM books WHERE id = @id",
+                            //        conn, transaction))
+                            //    {
+                            //        command.Parameters.AddWithValue("@id", book.BookId);
+                            //        command.ExecuteNonQuery();
+                            //    }
+                            //}
+
                             transaction.Commit();
                         }
                         catch
