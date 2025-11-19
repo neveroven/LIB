@@ -1,0 +1,14 @@
+/* Admin panel specific styles */
+
+.admin-iframe {
+    width: 100%;
+    height: calc(100vh - 120px);
+    border: 1px solid var(--button-border);
+    border-radius: var(--border-radius-medium);
+    background: white;
+}
+
+body.dark-theme .admin-iframe {
+    border-color: var(--button-border-dark);
+}
+

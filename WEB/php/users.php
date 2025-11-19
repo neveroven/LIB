@@ -18,7 +18,7 @@ function executeQuery($connect, $sql) {
 }
 
 // Обработка добавления пользователя
-if ($_POST['action'] == 'add_user') {
+if (isset($_POST['action']) && $_POST['action'] == 'add_user') {
     $login = mysqli_real_escape_string($connect, $_POST['login']);
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
     $is_admin = isset($_POST['is_admin']) ? 1 : 0;
@@ -34,7 +34,7 @@ if ($_POST['action'] == 'add_user') {
 }
 
 // Обработка редактирования пользователя
-if ($_POST['action'] == 'edit_user') {
+if (isset($_POST['action']) && $_POST['action'] == 'edit_user') {
     $user_id = intval($_POST['user_id']);
     $login = mysqli_real_escape_string($connect, $_POST['login']);
     $is_admin = isset($_POST['is_admin']) ? 1 : 0;
@@ -56,7 +56,7 @@ if ($_POST['action'] == 'edit_user') {
 }
 
 // Обработка смены пароля
-if ($_POST['action'] == 'change_password') {
+if (isset($_POST['action']) && $_POST['action'] == 'change_password') {
     $user_id = intval($_POST['user_id']);
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
     
@@ -77,7 +77,7 @@ if ($_POST['action'] == 'change_password') {
 }
 
 // Обработка удаления пользователя
-if ($_GET['action'] == 'delete') {
+if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['id'])) {
     $user_id = intval($_GET['id']);
     
     // Проверяем, не пытаемся ли удалить другого админа или себя
@@ -102,7 +102,7 @@ if ($_GET['action'] == 'delete') {
 
 // Получение данных пользователя для редактирования
 $edit_user = null;
-if ($_GET['action'] == 'edit' && isset($_GET['id'])) {
+if (isset($_GET['action']) && $_GET['action'] == 'edit' && isset($_GET['id'])) {
     $user_id = intval($_GET['id']);
     $result = executeQuery($connect, "SELECT * FROM users WHERE UID = $user_id");
     $edit_user = mysqli_fetch_assoc($result);

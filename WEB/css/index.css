@@ -1,0 +1,9 @@
+/* Index page specific styles - Authorization/Registration */
+
+/* Authorization panel specific styles are already in main.css */
+/* Additional styles for index page if needed */
+
+.auth-container {
+    min-height: 100vh;
+}
+

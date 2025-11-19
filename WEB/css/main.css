@@ -1,0 +1,752 @@
+/* Paradise Library - Main Stylesheet */
+/* Based on MainWindow.xaml design */
+
+:root {
+    /* Light theme colors */
+    --window-bg: #F2F2F2;
+    --text-color: #000000;
+    --button-bg: #FFDAB9;
+    --button-border: #333333;
+    --accent-color: #FFDAB9;
+    
+    /* Dark theme colors */
+    --window-bg-dark: #1E1E1E;
+    --text-color-dark: #FFFFFF;
+    --button-bg-dark: #404040;
+    --button-border-dark: #606060;
+    
+    /* Common */
+    --border-radius: 3px;
+    --border-radius-medium: 8px;
+    --border-radius-large: 15px;
+    --border-radius-round: 20px;
+    --shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    --shadow-medium: 0 4px 8px rgba(0, 0, 0, 0.15);
+    --shadow-large: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* Reset and base styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--button-bg);
+    color: var(--text-color);
+    min-height: 100vh;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body.dark-theme {
+    background-color: var(--button-bg-dark);
+    color: var(--text-color-dark);
+}
+
+/* Layout */
+.app-container {
+    display: flex;
+    min-height: 100vh;
+    width: 100%;
+}
+
+/* Left Sidebar */
+.left-panel {
+    width: 250px;
+    min-width: 250px;
+    background-color: var(--button-bg);
+    border-right: 1px solid var(--button-border);
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    height: 100vh;
+    overflow-y: auto;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+    z-index: 100;
+}
+
+body.dark-theme .left-panel {
+    background-color: var(--button-bg-dark);
+    border-color: var(--button-border-dark);
+}
+
+.library-title {
+    font-size: 20px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 20px;
+    cursor: pointer;
+    color: var(--text-color);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    transition: color 0.3s ease;
+}
+
+body.dark-theme .library-title {
+    color: var(--text-color-dark);
+}
+
+/* Navigation buttons */
+.nav-buttons {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.nav-button {
+    width: 100%;
+    height: 45px;
+    padding: 10px 15px;
+    background-color: var(--button-bg);
+    border: 1px solid var(--button-border);
+    border-radius: var(--border-radius);
+    color: var(--text-color);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nav-button:hover {
+    opacity: 0.8;
+    box-shadow: var(--shadow);
+}
+
+.nav-button.active {
+    background-color: var(--accent-color);
+    box-shadow: var(--shadow);
+}
+
+body.dark-theme .nav-button {
+    background-color: var(--button-bg-dark);
+    border-color: var(--button-border-dark);
+    color: var(--text-color-dark);
+}
+
+/* Settings buttons */
+.settings-buttons {
+    margin-top: auto;
+    padding-top: 20px;
+    border-top: 1px solid var(--button-border);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+body.dark-theme .settings-buttons {
+    border-color: var(--button-border-dark);
+}
+
+/* Right Panel */
+.right-panel {
+    flex: 1;
+    margin-left: 250px;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    width: calc(100% - 250px);
+}
+
+/* Top bar */
+.top-bar {
+    background-color: var(--button-bg);
+    border-bottom: 1px solid var(--button-border);
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+body.dark-theme .top-bar {
+    background-color: var(--button-bg-dark);
+    border-color: var(--button-border-dark);
+}
+
+.back-button {
+    height: 35px;
+    width: 180px;
+    padding: 8px 15px;
+    background-color: var(--button-bg);
+    border: 1px solid var(--button-border);
+    border-radius: var(--border-radius);
+    color: var(--text-color);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.back-button:hover {
+    opacity: 0.8;
+    box-shadow: var(--shadow);
+}
+
+.exit-button {
+    width: 90px;
+    height: 35px;
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    color: var(--text-color);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 8px 15px;
+}
+
+.exit-button:hover {
+    background-color: #FF3333;
+    border-color: #FF6666;
+    color: white;
+    box-shadow: 0 2px 8px rgba(255, 0, 0, 0.3);
+}
+
+/* Main content area */
+.main-content {
+    flex: 1;
+    padding: 10px;
+    overflow-y: auto;
+}
+
+/* Panels */
+.panel {
+    background-color: var(--button-bg);
+    border: 1px solid var(--button-border);
+    border-radius: var(--border-radius-medium);
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+    transition: all 0.3s ease;
+}
+
+body.dark-theme .panel {
+    background-color: var(--button-bg-dark);
+    border-color: var(--button-border-dark);
+}
+
+.panel-title {
+    font-size: 28px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: var(--text-color);
+}
+
+body.dark-theme .panel-title {
+    color: var(--text-color-dark);
+}
+
+.panel-subtitle {
+    font-size: 16px;
+    opacity: 0.8;
+    margin-bottom: 15px;
+}
+
+/* Buttons */
+.btn {
+    padding: 8px 15px;
+    background-color: var(--button-bg);
+    border: 1px solid var(--button-border);
+    border-radius: var(--border-radius);
+    color: var(--text-color);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+}
+
+.btn:hover {
+    opacity: 0.8;
+    box-shadow: var(--shadow);
+}
+
+.btn-primary {
+    background-color: var(--accent-color);
+}
+
+body.dark-theme .btn {
+    background-color: var(--button-bg-dark);
+    border-color: var(--button-border-dark);
+    color: var(--text-color-dark);
+}
+
+/* Forms */
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-label {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 8px;
+    color: var(--text-color);
+}
+
+body.dark-theme .form-label {
+    color: var(--text-color-dark);
+}
+
+.form-control {
+    width: 100%;
+    height: 40px;
+    padding: 5px 10px;
+    font-size: 16px;
+    background-color: white;
+    border: 2px solid #CCCCCC;
+    border-radius: var(--border-radius);
+    color: black;
+    transition: border-color 0.2s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+body.dark-theme .form-control {
+    background-color: #2a2a2a;
+    border-color: #606060;
+    color: var(--text-color-dark);
+}
+
+/* Authorization panel */
+.auth-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 60px);
+    padding: 20px;
+}
+
+.auth-panel {
+    background-color: var(--button-bg);
+    border: 2px solid var(--button-border);
+    border-radius: var(--border-radius-large);
+    padding: 40px;
+    max-width: 600px;
+    width: 100%;
+    box-shadow: var(--shadow-large);
+    transition: all 0.3s ease;
+}
+
+body.dark-theme .auth-panel {
+    background-color: var(--button-bg-dark);
+    border-color: var(--button-border-dark);
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.auth-title {
+    font-size: 32px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.auth-subtitle {
+    font-size: 16px;
+    opacity: 0.8;
+}
+
+/* Toggle buttons */
+.toggle-container {
+    background-color: var(--button-border);
+    border-radius: var(--border-radius-round);
+    padding: 5px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+body.dark-theme .toggle-container {
+    background-color: var(--button-border-dark);
+}
+
+.toggle-button {
+    height: 45px;
+    width: 120px;
+    background-color: transparent;
+    border: none;
+    border-radius: var(--border-radius-round);
+    color: var(--text-color);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.toggle-button.active {
+    background-color: var(--button-bg);
+    border: 1px solid var(--button-border);
+    box-shadow: var(--shadow);
+}
+
+body.dark-theme .toggle-button.active {
+    background-color: var(--button-bg-dark);
+    border-color: var(--button-border-dark);
+}
+
+/* Alerts */
+.alert {
+    padding: 12px 15px;
+    border-radius: var(--border-radius);
+    margin-bottom: 15px;
+    border: 1px solid;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+body.dark-theme .alert-danger {
+    background-color: #4a1f1f;
+    border-color: #6b2a2a;
+    color: #ff6b6b;
+}
+
+body.dark-theme .alert-success {
+    background-color: #1f4a1f;
+    border-color: #2a6b2a;
+    color: #6bff6b;
+}
+
+/* Books list */
+.books-list {
+    list-style: none;
+    padding: 0;
+}
+
+.book-item {
+    padding: 10px;
+    margin: 5px 0;
+    background-color: transparent;
+    border-radius: var(--border-radius);
+    transition: background-color 0.2s ease;
+    cursor: pointer;
+}
+
+.book-item:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+body.dark-theme .book-item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.book-title {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.book-author {
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+.book-filename {
+    font-size: 10px;
+    opacity: 0.6;
+}
+
+/* Books grid */
+.books-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 20px;
+    padding: 10px;
+}
+
+.book-card {
+    width: 180px;
+    height: 350px;
+    background-color: var(--button-bg);
+    border: 1px solid var(--button-border);
+    border-radius: var(--border-radius-medium);
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.book-card:hover {
+    box-shadow: var(--shadow-medium);
+    transform: translateY(-2px);
+}
+
+body.dark-theme .book-card {
+    background-color: var(--button-bg-dark);
+    border-color: var(--button-border-dark);
+}
+
+.book-cover {
+    width: 100%;
+    height: 190px;
+    background-color: var(--button-border);
+    border-radius: 4px;
+    margin-bottom: 10px;
+    object-fit: cover;
+}
+
+body.dark-theme .book-cover {
+    background-color: var(--button-border-dark);
+}
+
+.book-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 10px;
+}
+
+.book-card-title {
+    font-weight: bold;
+    font-size: 14px;
+    text-align: center;
+    margin-bottom: 5px;
+    max-height: 40px;
+    overflow: hidden;
+}
+
+.book-card-author {
+    font-size: 12px;
+    opacity: 0.8;
+    text-align: center;
+    max-height: 20px;
+    overflow: hidden;
+}
+
+.book-actions {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+}
+
+.action-btn {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    background-color: var(--button-bg);
+    border: 1px solid var(--button-border);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+    background-color: #E0E0E0;
+    border-color: #999999;
+}
+
+body.dark-theme .action-btn {
+    background-color: var(--button-bg-dark);
+    border-color: var(--button-border-dark);
+}
+
+body.dark-theme .action-btn:hover {
+    background-color: #505050;
+    border-color: #707070;
+}
+
+/* Statistics */
+.statistics-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.stat-item {
+    font-size: 14px;
+    margin: 5px 0;
+}
+
+/* Quick actions */
+.quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+}
+
+.quick-action-btn {
+    width: 140px;
+    height: 35px;
+    margin: 5px;
+}
+
+/* Tables */
+.table-container {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+table th,
+table td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--button-border);
+}
+
+body.dark-theme table th,
+body.dark-theme table td {
+    border-color: var(--button-border-dark);
+}
+
+table th {
+    font-weight: bold;
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+body.dark-theme table th {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Badges */
+.badge {
+    padding: 4px 8px;
+    border-radius: var(--border-radius);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.badge-primary {
+    background-color: #007bff;
+    color: white;
+}
+
+.badge-success {
+    background-color: #28a745;
+    color: white;
+}
+
+.badge-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+/* Separator */
+.separator {
+    height: 1px;
+    background-color: var(--button-border);
+    margin: 20px 0;
+}
+
+body.dark-theme .separator {
+    background-color: var(--button-border-dark);
+}
+
+/* Guest login button */
+.guest-login-section {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.guest-text {
+    font-size: 14px;
+    opacity: 0.7;
+    margin-bottom: 10px;
+}
+
+.guest-button {
+    width: 180px;
+    height: 35px;
+    background-color: transparent;
+    border: 1px solid var(--button-border);
+    border-radius: var(--border-radius);
+}
+
+body.dark-theme .guest-button {
+    border-color: var(--button-border-dark);
+}
+
+/* Loading panel */
+.loading-panel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+}
+
+.loading-content {
+    text-align: center;
+}
+
+.loading-text {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 25px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .left-panel {
+        width: 100%;
+        position: relative;
+        height: auto;
+    }
+    
+    .right-panel {
+        margin-left: 0;
+    }
+    
+    .books-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--button-bg);
+}
+
+body.dark-theme ::-webkit-scrollbar-track {
+    background: var(--button-bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--button-border);
+    border-radius: 4px;
+}
+
+body.dark-theme ::-webkit-scrollbar-thumb {
+    background: var(--button-border-dark);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--button-bg);
+}
+
+body.dark-theme ::-webkit-scrollbar-thumb:hover {
+    background: var(--button-bg-dark);
+}
+
