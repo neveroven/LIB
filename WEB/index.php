@@ -208,13 +208,7 @@ $saved_reg_login = $_POST['reg_login'] ?? '';
                                     </button>
                                 </form>
                                 
-                                <div class="text-center mt-3">
-                                    <small class="text-muted">
-                                        Для демонстрации используйте:<br>
-                                        Админ: admin / admin123<br>
-                                        Пользователь: user / user123
-                                    </small>
-                                </div>
+                                
                             </div>
 
                             <!-- Вкладка регистрации -->

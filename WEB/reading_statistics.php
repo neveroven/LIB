@@ -7,8 +7,24 @@ if (empty($_SESSION['is_admin']) || !$_SESSION['is_admin']) {
     exit();
 }
 
+// Функция для безопасного выполнения запросов
+function executeQuery($connect, $sql) {
+    $result = mysqli_query($connect, $sql);
+    if (!$result) {
+        error_log("SQL Error in reading_statistics.php: " . mysqli_error($connect));
+        return false;
+    }
+    return $result;
+}
+
 // Получение общей статистики
-$stats = [];
+$stats = [
+    'active_users' => 0,
+    'active_books' => 0, 
+    'avg_progress' => 0,
+    'last_activity' => null
+];
+
 $stats_query = "
     SELECT 
         COUNT(DISTINCT user_id) as active_users,
@@ -17,8 +33,11 @@ $stats_query = "
         MAX(last_read_at) as last_activity
     FROM reading_progress
 ";
-$stats_result = mysqli_query($connect, $stats_query);
-$stats = mysqli_fetch_assoc($stats_result);
+
+$stats_result = executeQuery($connect, $stats_query);
+if ($stats_result) {
+    $stats = mysqli_fetch_assoc($stats_result);
+}
 
 // Получение самых читаемых книг
 $popular_books = [];
@@ -31,9 +50,12 @@ $popular_query = "
     ORDER BY read_count DESC, avg_progress DESC
     LIMIT 10
 ";
-$popular_result = mysqli_query($connect, $popular_query);
-while ($row = mysqli_fetch_assoc($popular_result)) {
-    $popular_books[] = $row;
+
+$popular_result = executeQuery($connect, $popular_query);
+if ($popular_result) {
+    while ($row = mysqli_fetch_assoc($popular_result)) {
+        $popular_books[] = $row;
+    }
 }
 
 // Получение самых активных пользователей
@@ -47,9 +69,12 @@ $active_query = "
     ORDER BY sessions DESC, last_read DESC
     LIMIT 10
 ";
-$active_result = mysqli_query($connect, $active_query);
-while ($row = mysqli_fetch_assoc($active_result)) {
-    $active_users[] = $row;
+
+$active_result = executeQuery($connect, $active_query);
+if ($active_result) {
+    while ($row = mysqli_fetch_assoc($active_result)) {
+        $active_users[] = $row;
+    }
 }
 
 // Статистика по дням (последние 7 дней)
@@ -64,9 +89,12 @@ $daily_query = "
     GROUP BY DATE(last_read_at)
     ORDER BY read_date DESC
 ";
-$daily_result = mysqli_query($connect, $daily_query);
-while ($row = mysqli_fetch_assoc($daily_result)) {
-    $daily_stats[] = $row;
+
+$daily_result = executeQuery($connect, $daily_query);
+if ($daily_result) {
+    while ($row = mysqli_fetch_assoc($daily_result)) {
+        $daily_stats[] = $row;
+    }
 }
 ?>
 

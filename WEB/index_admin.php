@@ -33,6 +33,7 @@ if (empty($_SESSION['is_admin']) || !$_SESSION['is_admin']) {
             border: 1px solid #dee2e6;
             border-radius: 0.375rem;
         }
+        
     </style>
 </head>
 
@@ -137,80 +138,12 @@ if (empty($_SESSION['is_admin']) || !$_SESSION['is_admin']) {
                     </div>
                 </div>
 
-                <!-- Приветственная информация -->
-                <div class="row">
-                    <div class="col-12">
-                        <div class="alert alert-info">
-                            <h5>Добро пожаловать в панель управления Paradise Library!</h5>
-                            <p class="mb-0">Используйте меню слева для навигации по разделам административной панели.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Быстрая статистика -->
-                <div class="row mb-4">
-                    <div class="col-md-3">
-                        <div class="card text-white bg-primary">
-                            <div class="card-body">
-                                <h5 class="card-title">
-                                    <?php
-                                    $result = mysqli_query($connect, "SELECT COUNT(*) as count FROM books");
-                                    $row = mysqli_fetch_assoc($result);
-                                    echo $row['count'];
-                                    ?>
-                                </h5>
-                                <p class="card-text">Всего книг</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card text-white bg-success">
-                            <div class="card-body">
-                                <h5 class="card-title">
-                                    <?php
-                                    $result = mysqli_query($connect, "SELECT COUNT(*) as count FROM users");
-                                    $row = mysqli_fetch_assoc($result);
-                                    echo $row['count'];
-                                    ?>
-                                </h5>
-                                <p class="card-text">Пользователей</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card text-white bg-warning">
-                            <div class="card-body">
-                                <h5 class="card-title">
-                                    <?php
-                                    $result = mysqli_query($connect, "SELECT COUNT(*) as count FROM reading_progress");
-                                    $row = mysqli_fetch_assoc($result);
-                                    echo $row['count'];
-                                    ?>
-                                </h5>
-                                <p class="card-text">Активных чтений</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="card text-white bg-info">
-                            <div class="card-body">
-                                <h5 class="card-title">
-                                    <?php
-                                    $result = mysqli_query($connect, "SELECT COUNT(*) as count FROM book_files");
-                                    $row = mysqli_fetch_assoc($result);
-                                    echo $row['count'];
-                                    ?>
-                                </h5>
-                                <p class="card-text">Файлов книг</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                
 
                 <!-- Основной контент -->
                 <div class="row">
                     <div class="col-12">
-                        <iframe name="adminFrame" src="books.php" frameborder="0" width="100%" height="600px" style="background: white;"></iframe>
+                        <iframe name="adminFrame" src="admin_main_page_support.php" frameborder="0" width="100%" height="600px" style="background: white;"></iframe>
                     </div>
                 </div>
             </main>

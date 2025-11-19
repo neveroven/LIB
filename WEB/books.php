@@ -107,8 +107,77 @@ if ($result) {
     <title>Управление книгами - Paradise Library Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <!-- Приветственная информация -->
+    <div class="row">
+                    <div class="col-12">
+                        <div class="alert alert-info">
+                            <h5>Добро пожаловать в панель управления Paradise Library!</h5>
+                            <p class="mb-0">Используйте меню слева для навигации по разделам административной панели.</p>
+                        </div>
+                    </div>
+                </div>
+    
+                <!-- Быстрая статистика -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card text-white bg-primary">
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    <?php
+                                    $result = mysqli_query($connect, "SELECT COUNT(*) as count FROM books");
+                                    $row = mysqli_fetch_assoc($result);
+                                    echo $row['count'];
+                                    ?>
+                                </h5>
+                                <p class="card-text">Всего книг</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-white bg-success">
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    <?php
+                                    $result = mysqli_query($connect, "SELECT COUNT(*) as count FROM users");
+                                    $row = mysqli_fetch_assoc($result);
+                                    echo $row['count'];
+                                    ?>
+                                </h5>
+                                <p class="card-text">Пользователей</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-white bg-warning">
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    <?php
+                                    $result = mysqli_query($connect, "SELECT COUNT(*) as count FROM reading_progress");
+                                    $row = mysqli_fetch_assoc($result);
+                                    echo $row['count'];
+                                    ?>
+                                </h5>
+                                <p class="card-text">Активных чтений</p>
+                            </div>
+                        </div>
+                    </div>
 </head>
 <body>
+                    <div class="col-md-3">
+                        <div class="card text-white bg-info">
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    <?php
+                                    $result = mysqli_query($connect, "SELECT COUNT(*) as count FROM book_files");
+                                    $row = mysqli_fetch_assoc($result);
+                                    echo $row['count'];
+                                    ?>
+                                </h5>
+                                <p class="card-text">Файлов книг</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
     <div class="container-fluid py-3">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2><i class="bi bi-book"></i> Управление книгами</h2>
