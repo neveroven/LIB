@@ -170,9 +170,9 @@ body.dark-theme .top-bar {
 }
 
 .back-button {
-    height: 35px;
-    width: 180px;
-    padding: 8px 15px;
+    height: 40px;
+    width: 170px;
+    padding: 8px 2px;
     background-color: var(--button-bg);
     border: 1px solid var(--button-border);
     border-radius: var(--border-radius);
@@ -591,9 +591,9 @@ body.dark-theme .action-btn:hover {
 }
 
 .quick-action-btn {
-    width: 140px;
-    height: 35px;
-    margin: 5px;
+    width: 130px;
+    height: 50px;
+    margin: 2px;
 }
 
 /* Tables */
