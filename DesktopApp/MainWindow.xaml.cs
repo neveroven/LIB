@@ -4442,5 +4442,360 @@ namespace LIB
             // Объединяем путь к папке DB с путем из БД
             return System.IO.Path.Combine(dbFolderPath, serverUri.Replace('/', '\\'));
         }
+        // === ОБРАБОТЧИКИ АДМИНИСТРАТИВНОЙ ПАНЕЛИ ===
+
+        // Переход в административную панель
+        private void AdminPanelButton_Click(object sender, RoutedEventArgs e)
+        {
+            ShowAdminPanel();
+            LoadAdminStatistics();
+        }
+
+        // Назад из административной панели
+        private void BackFromAdmin_Click(object sender, RoutedEventArgs e)
+        {
+            
+        }
+
+        // === НАВИГАЦИЯ ПО РАЗДЕЛАМ АДМИНКИ ===
+
+        private void AdminMainButton_Click(object sender, RoutedEventArgs e)
+        {
+            ShowAdminMainContent();
+            LoadAdminStatistics();
+        }
+
+        private void AdminBooksButton_Click(object sender, RoutedEventArgs e)
+        {
+            ShowAdminContent("Books");
+            LoadBooksData();
+        }
+
+        private void AdminBookFilesButton_Click(object sender, RoutedEventArgs e)
+        {
+            ShowAdminContent("BookFiles");
+            LoadBookFilesData();
+        }
+
+        private void AdminUsersButton_Click(object sender, RoutedEventArgs e)
+        {
+            ShowAdminContent("Users");
+            LoadUsersData();
+        }
+
+        private void AdminReadingStatsButton_Click(object sender, RoutedEventArgs e)
+        {
+            ShowAdminContent("ReadingStats");
+            LoadReadingStatistics();
+        }
+
+        private void AdminUserBooksButton_Click(object sender, RoutedEventArgs e)
+        {
+            ShowAdminContent("UserBooks");
+            LoadUserBooksData();
+        }
+
+        private void AdminProgressButton_Click(object sender, RoutedEventArgs e)
+        {
+            ShowAdminContent("Progress");
+            LoadReadingProgressData();
+        }
+
+        private void AdminSettingsButton_Click(object sender, RoutedEventArgs e)
+        {
+            ShowAdminContent("Settings");
+            LoadSettingsData();
+        }
+
+        private void AdminBackupButton_Click(object sender, RoutedEventArgs e)
+        {
+            ShowAdminContent("Backup");
+            LoadBackupData();
+        }
+
+        // === БЫСТРЫЕ ДЕЙСТВИЯ НА ГЛАВНОЙ ПАНЕЛИ ===
+
+        private void AdminQuickAddBook_Click(object sender, RoutedEventArgs e)
+        {
+            ShowAdminContent("Books");
+            LoadBooksData();
+            // Здесь можно добавить логику для быстрого добавления книги
+            ShowAddBookDialog();
+        }
+
+        private void AdminQuickUsers_Click(object sender, RoutedEventArgs e)
+        {
+            ShowAdminContent("Users");
+            LoadUsersData();
+        }
+
+        private void AdminQuickStats_Click(object sender, RoutedEventArgs e)
+        {
+            ShowAdminContent("ReadingStats");
+            LoadReadingStatistics();
+        }
+
+        private void AdminQuickBackup_Click(object sender, RoutedEventArgs e)
+        {
+            ShowAdminContent("Backup");
+            LoadBackupData();
+            CreateBackup();
+        }
+
+        // === МЕТОДЫ ДЛЯ РАБОТЫ С БАЗОЙ ДАННЫХ ===
+
+        private void LoadAdminStatistics()
+        {
+            try
+            {
+                using (MySqlConnection connection = new MySqlConnection(conectionString))
+                {
+                    connection.Open();
+
+                    // Загрузка общей статистики
+                    string statsQuery = @"
+                SELECT 
+                    (SELECT COUNT(*) FROM books) as total_books,
+                    (SELECT COUNT(*) FROM users) as total_users,
+                    (SELECT COUNT(*) FROM reading_progress) as active_readings,
+                    (SELECT COUNT(*) FROM book_files) as total_files";
+
+                    using (MySqlCommand cmd = new MySqlCommand(statsQuery, connection))
+                    {
+                        using (MySqlDataReader reader = cmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                AdminTotalBooksText.Text = reader["total_books"].ToString();
+                                AdminTotalUsersText.Text = reader["total_users"].ToString();
+                                AdminActiveReadingsText.Text = reader["active_readings"].ToString();
+                                AdminBookFilesText.Text = reader["total_files"].ToString();
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки статистики: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void LoadBooksData()
+        {
+            try
+            {
+                using (MySqlConnection connection = new MySqlConnection(conectionString))
+                {
+                    connection.Open();
+                    string query = "SELECT id, title, author, published_year, language, series FROM books ORDER BY id DESC";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, connection))
+                    {
+                        // Здесь можно загрузить данные в DataGrid или ListView
+                        // Например: BooksDataGrid.ItemsSource = cmd.ExecuteReader();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки книг: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void LoadBookFilesData()
+        {
+            try
+            {
+                using (MySqlConnection connection = new MySqlConnection(conectionString))
+                {
+                    connection.Open();
+                    string query = @"SELECT bf.*, b.title as book_title, b.author 
+                           FROM book_files bf 
+                           JOIN books b ON bf.book_id = b.id 
+                           ORDER BY bf.id DESC";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, connection))
+                    {
+                        // Загрузка файлов книг
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки файлов книг: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void LoadUsersData()
+        {
+            try
+            {
+                using (MySqlConnection connection = new MySqlConnection(conectionString))
+                {
+                    connection.Open();
+                    string query = "SELECT UID, User_login, Is_admin FROM users ORDER BY UID";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, connection))
+                    {
+                        // Загрузка пользователей
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки пользователей: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void LoadReadingStatistics()
+        {
+            try
+            {
+                using (MySqlConnection connection = new MySqlConnection(conectionString))
+                {
+                    connection.Open();
+                    string query = @"
+                SELECT 
+                    COUNT(DISTINCT user_id) as active_users,
+                    COUNT(DISTINCT book_id) as active_books,
+                    AVG(progress_percent) as avg_progress,
+                    MAX(last_read_at) as last_activity
+                FROM reading_progress";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, connection))
+                    {
+                        // Загрузка статистики чтения
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки статистики чтения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void LoadUserBooksData()
+        {
+            try
+            {
+                using (MySqlConnection connection = new MySqlConnection(conectionString))
+                {
+                    connection.Open();
+                    string query = @"
+                SELECT ub.*, u.User_login, b.title, b.author, bf.file_name, bf.format
+                FROM user_books ub
+                JOIN users u ON ub.user_id = u.UID
+                JOIN books b ON ub.book_id = b.id
+                LEFT JOIN book_files bf ON b.id = bf.book_id
+                ORDER BY ub.added_at DESC";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, connection))
+                    {
+                        // Загрузка книг пользователей
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки книг пользователей: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void LoadReadingProgressData()
+        {
+            try
+            {
+                using (MySqlConnection connection = new MySqlConnection(    conectionString))
+                {
+                    connection.Open();
+                    string query = @"
+                SELECT rp.*, u.User_login, b.title as book_title, b.author, bf.file_name, bf.format
+                FROM reading_progress rp
+                JOIN users u ON rp.user_id = u.UID
+                JOIN book_files bf ON rp.book_file_id = bf.id
+                JOIN books b ON bf.book_id = b.id
+                ORDER BY rp.last_read_at DESC";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, connection))
+                    {
+                        // Загрузка прогресса чтения
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки прогресса чтения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void LoadSettingsData()
+        {
+            try
+            {
+                using (MySqlConnection connection = new MySqlConnection(conectionString))
+                {
+                    connection.Open();
+                    string query = "SELECT setting_key, setting_value FROM settings";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, connection))
+                    {
+                        // Загрузка настроек
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки настроек: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void LoadBackupData()
+        {
+            // Загрузка информации о backup'ах
+            // Можно показать список существующих backup'ов
+        }
+
+        private void CreateBackup()
+        {
+           
+        }
+
+        // === ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ===
+
+        private void ShowAdminPanel()
+        {
+            
+            AdminPanel.Visibility = Visibility.Visible;
+            ShowAdminMainContent();
+        }
+
+        private void ShowAdminMainContent()
+        {
+            AdminLoadingPanel.Visibility = Visibility.Collapsed;
+            AdminContentControl.Visibility = Visibility.Collapsed;
+            AdminMainContent.Visibility = Visibility.Visible;
+        }
+
+        private void ShowAdminContent(string contentType)
+        {
+            AdminLoadingPanel.Visibility = Visibility.Visible;
+            AdminMainContent.Visibility = Visibility.Collapsed;
+            AdminContentControl.Visibility = Visibility.Visible;
+
+            // Здесь можно динамически загружать соответствующий контент
+            // в зависимости от contentType
+        }
+
+        private void ShowAddBookDialog()
+        {
+            
+                // Книга добавлена, обновляем данные
+                LoadBooksData();
+                LoadAdminStatistics();
+            
+        }
+
+        
     }
 }
