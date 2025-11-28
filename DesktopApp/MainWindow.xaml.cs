@@ -216,10 +216,7 @@ namespace LIB
                 NavigationButtons.Visibility = Visibility.Visible;
                 AutorisationPanel.Visibility = Visibility.Collapsed;
                 BackToLibraryButton.Visibility = Visibility.Collapsed;
-                BooksGridPanel.Visibility = Visibility.Collapsed;
-                ReadingPanel.Visibility = Visibility.Collapsed;
-                SettingsPanel.Visibility = Visibility.Collapsed;
-                CatalogPanel.Visibility = Visibility.Collapsed;
+                HideAllPanels();
                 WelcomePanel.Visibility = Visibility.Visible;
                 UpdateBooksDisplay();
             }
@@ -970,11 +967,7 @@ namespace LIB
         /// Открывает панель каталога книг
         private void CatalogBooksButton_Click(object sender, RoutedEventArgs e)
         {
-            // Скрываем все панели
-            WelcomePanel.Visibility = Visibility.Collapsed;
-            ReadingPanel.Visibility = Visibility.Collapsed;
-            BooksGridPanel.Visibility = Visibility.Collapsed;
-            SettingsPanel.Visibility = Visibility.Collapsed;
+            HideAllPanels();
             BackToLibraryButton.Visibility = Visibility.Collapsed;
             
             // Показываем панель каталога
@@ -993,7 +986,7 @@ namespace LIB
         /// Возврат из каталога книг
         private void BackFromCatalog_Click(object sender, RoutedEventArgs e)
         {
-            CatalogPanel.Visibility = Visibility.Collapsed;
+            HideAllPanels();
             WelcomePanel.Visibility = Visibility.Visible;
         }
         
@@ -1297,10 +1290,7 @@ namespace LIB
         private void ShowReadingPanel(Book book)
         {
 
-            WelcomePanel.Visibility = Visibility.Collapsed;
-            BooksGridPanel.Visibility = Visibility.Collapsed;
-            SettingsPanel.Visibility = Visibility.Collapsed;
-            CatalogPanel.Visibility = Visibility.Collapsed;
+            HideAllPanels();
             ReadingPanel.Visibility = Visibility.Visible;
             BackToLibraryButton.Visibility = Visibility.Visible;
 
@@ -2507,11 +2497,7 @@ namespace LIB
 
         private void BackToLibrary_Click(object sender, RoutedEventArgs e)
         {
-            // Скрываем панель чтения
-            ReadingPanel.Visibility = Visibility.Collapsed;
-            SettingsPanel.Visibility = Visibility.Collapsed;
-            CatalogPanel.Visibility = Visibility.Collapsed;
-
+            HideAllPanels();
             // Показываем приветственную панель
             WelcomePanel.Visibility = Visibility.Visible;
 
@@ -2536,13 +2522,7 @@ namespace LIB
             catalogBooks.Clear();
             ClearAuthInputs();
 
-            // Скрываем рабочие панели
-            ReadingPanel.Visibility = Visibility.Collapsed;
-            BooksGridPanel.Visibility = Visibility.Collapsed;
-            WelcomePanel.Visibility = Visibility.Collapsed;
-            BackToLibraryButton.Visibility = Visibility.Collapsed;
-            SettingsPanel.Visibility = Visibility.Collapsed;
-            CatalogPanel.Visibility = Visibility.Collapsed;
+            HideAllPanels();
 
             // Показываем авторизацию и скрываем навигацию
             AutorisationPanel.Visibility = Visibility.Visible;
@@ -2942,12 +2922,7 @@ namespace LIB
 
         private void BooksButton_Click(object sender, RoutedEventArgs e)
         {
-            // Скрываем все панели
-            WelcomePanel.Visibility = Visibility.Collapsed;
-            ReadingPanel.Visibility = Visibility.Collapsed;
-            SettingsPanel.Visibility = Visibility.Collapsed;
-            CatalogPanel.Visibility = Visibility.Collapsed;
-            BackToLibraryButton.Visibility = Visibility.Collapsed;
+            HideAllPanels();
             // Показываем панель с гридом книг
             BooksGridPanel.Visibility = Visibility.Visible;
 
@@ -2959,10 +2934,7 @@ namespace LIB
 
         private void BackToWelcome_Click(object sender, RoutedEventArgs e)
         {
-            // Скрываем панель с гридом
-            BooksGridPanel.Visibility = Visibility.Collapsed;
-            SettingsPanel.Visibility = Visibility.Collapsed;
-            CatalogPanel.Visibility = Visibility.Collapsed;
+            HideAllPanels();
 
             // Показываем главную панель
             WelcomePanel.Visibility = Visibility.Visible;
@@ -3621,12 +3593,7 @@ namespace LIB
             NavigationButtons.Visibility = Visibility.Collapsed;
             SettingsButton.Visibility = Visibility.Collapsed;
 
-            AutorisationPanel.Visibility = Visibility.Collapsed;
-            BackToLibraryButton.Visibility = Visibility.Collapsed;
-            BooksGridPanel.Visibility = Visibility.Collapsed;
-            ReadingPanel.Visibility = Visibility.Collapsed;
-            SettingsPanel.Visibility = Visibility.Collapsed;
-            CatalogPanel.Visibility = Visibility.Collapsed;
+            HideAllPanels();
 
             // Очищаем локальные данные и обновляем приветственную панель
             books.Clear();
@@ -3641,13 +3608,7 @@ namespace LIB
             BooksButton.Visibility = Visibility.Visible;
             NavigationButtons.Visibility = Visibility.Visible;
             SettingsButton.Visibility = Visibility.Visible;
-            // Скрываем все панели
-            AutorisationPanel.Visibility = Visibility.Collapsed;
-            BackToLibraryButton.Visibility = Visibility.Collapsed;
-            BooksGridPanel.Visibility = Visibility.Collapsed;
-            ReadingPanel.Visibility = Visibility.Collapsed;
-            SettingsPanel.Visibility = Visibility.Collapsed;
-            CatalogPanel.Visibility = Visibility.Collapsed;
+            HideAllPanels();
 
             // Загружаем настройки после логина
             LoadSettings();
@@ -3662,7 +3623,7 @@ namespace LIB
                 LoadReadingProgressFromDatabase();
             }
 
-            // Показываем главную панель
+            
             WelcomePanel.Visibility = Visibility.Visible;
             UpdateBooksDisplay();
         }
@@ -3803,13 +3764,8 @@ namespace LIB
         /// </summary>
         private void ShowSettingsWindow()
         {
-            // Скрываем все панели
-            WelcomePanel.Visibility = Visibility.Collapsed;
-            ReadingPanel.Visibility = Visibility.Collapsed;
-            BooksGridPanel.Visibility = Visibility.Collapsed;
-            CatalogPanel.Visibility = Visibility.Collapsed;
-            BackToLibraryButton.Visibility = Visibility.Collapsed;
-            
+            HideAllPanels();
+
             // Показываем панель настроек
             SettingsPanel.Visibility = Visibility.Visible;
             
@@ -4066,8 +4022,7 @@ namespace LIB
         /// </summary>
         private void BackFromSettings_Click(object sender, RoutedEventArgs e)
         {
-            SettingsPanel.Visibility = Visibility.Collapsed;
-            CatalogPanel.Visibility = Visibility.Collapsed;
+            HideAllPanels();
             WelcomePanel.Visibility = Visibility.Visible;
         }
         
@@ -4301,6 +4256,7 @@ namespace LIB
 
         private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            HideAllPanels();
             LoadingPanel.Visibility = Visibility.Visible;
 
 
@@ -4314,7 +4270,7 @@ namespace LIB
                 Dispatcher.Invoke(() => LoadReadingProgressFromDatabase());
             });
 
-            LoadingPanel.Visibility = Visibility.Collapsed;
+            HideAllPanels();
             AutorisationPanel.Visibility = Visibility.Visible; 
 
             
@@ -4454,7 +4410,8 @@ namespace LIB
         // Назад из административной панели
         private void BackFromAdmin_Click(object sender, RoutedEventArgs e)
         {
-            
+            HideAllPanels();
+            WelcomePanel.Visibility = Visibility.Visible;
         }
 
         // === НАВИГАЦИЯ ПО РАЗДЕЛАМ АДМИНКИ ===
@@ -4765,22 +4722,21 @@ namespace LIB
 
         private void ShowAdminPanel()
         {
-            
+            HideAllPanels();
             AdminPanel.Visibility = Visibility.Visible;
             ShowAdminMainContent();
         }
 
         private void ShowAdminMainContent()
         {
-            AdminLoadingPanel.Visibility = Visibility.Collapsed;
-            AdminContentControl.Visibility = Visibility.Collapsed;
+            HideAllPanels();
             AdminMainContent.Visibility = Visibility.Visible;
         }
 
         private void ShowAdminContent(string contentType)
         {
+            HideAllPanels();
             AdminLoadingPanel.Visibility = Visibility.Visible;
-            AdminMainContent.Visibility = Visibility.Collapsed;
             AdminContentControl.Visibility = Visibility.Visible;
 
             // Здесь можно динамически загружать соответствующий контент
@@ -4794,6 +4750,22 @@ namespace LIB
                 LoadBooksData();
                 LoadAdminStatistics();
             
+        }
+        private void HideAllPanels()
+        {
+            LoadingPanel.Visibility = Visibility.Collapsed;
+            AutorisationPanel.Visibility = Visibility.Collapsed;
+            WelcomePanel.Visibility = Visibility.Collapsed;
+            BooksGridPanel.Visibility = Visibility.Collapsed;
+            SettingsPanel.Visibility = Visibility.Collapsed;
+            CatalogPanel.Visibility = Visibility.Collapsed;
+            ReadingPanel.Visibility = Visibility.Collapsed;
+            BackToLibraryButton.Visibility = Visibility.Collapsed;
+            AdminPanel.Visibility = Visibility.Collapsed;
+            AdminLoadingPanel.Visibility = Visibility.Collapsed;
+            AdminMainContent.Visibility = Visibility.Collapsed;
+            AdminContentControl.Visibility = Visibility.Collapsed; 
+
         }
 
         
