@@ -125,25 +125,7 @@ if ($result) {
     <title>Пользователи - Paradise Library Admin</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
-    <style>
-        .card {
-            border: none;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .table th {
-            border-top: none;
-            font-weight: 600;
-        }
-        .badge-admin {
-            background: #dc3545;
-            color: white;
-        }
-        .badge-user {
-            background: #28a745;
-            color: white;
-        }
-    </style>
+    <link rel="stylesheet" href="../css/users.css">
 </head>
 <body>
     <div class="container-fluid py-3">
@@ -351,22 +333,6 @@ if ($result) {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        function setEditUser(id, login, isAdmin) {
-            document.getElementById('editUserId').value = id;
-            document.getElementById('editUserLogin').value = login;
-            document.getElementById('editIsAdmin').checked = isAdmin;
-        }
-
-        function setChangePasswordUser(id, login) {
-            document.getElementById('changePasswordUserId').value = id;
-            document.getElementById('changePasswordUserLogin').value = login;
-        }
-
-        // Очистка формы добавления при закрытии модального окна
-        document.getElementById('addUserModal').addEventListener('hidden.bs.modal', function () {
-            this.querySelector('form').reset();
-        });
-    </script>
+    <script src="../js/users.js"></script>
 </body>
 </html>

@@ -129,7 +129,7 @@ while ($row = mysqli_fetch_assoc($result)) {
                 <div class="card text-white bg-success">
                     <div class="card-body text-center">
                         <h5 class="card-title"><?= $almost_finished ?></h5>
-                        <p class="card-text">Почти закончили (>90%)</p>
+                        <p class="card-text">Почти закончили (> 90%)</p>
                     </div>
                 </div>
             </div>
@@ -142,7 +142,7 @@ while ($row = mysqli_fetch_assoc($result)) {
                 <div class="card text-white bg-warning">
                     <div class="card-body text-center">
                         <h5 class="card-title"><?= $just_started ?></h5>
-                        <p class="card-text">Только начали (<10%)</p>
+                        <p class="card-text">Только начали (< 10%)</p>
                     </div>
                 </div>
             </div>

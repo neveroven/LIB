@@ -1,0 +1,17 @@
+.card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+.table th {
+    border-top: none;
+    font-weight: 600;
+}
+.badge-admin {
+    background: #dc3545;
+    color: white;
+}
+.badge-user {
+    background: #28a745;
+    color: white;
+}
