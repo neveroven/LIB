@@ -2517,6 +2517,7 @@ namespace LIB
             isLogin = false;
             currentUserId = 0;
             isAdmin = false;
+            AdminPanelButton.Visibility = Visibility.Collapsed;
             books.Clear();
             readingProgress.Clear();
             catalogBooks.Clear();
@@ -3482,6 +3483,10 @@ namespace LIB
                 int userId = CheckUserCredentials(login, password);
                 if (userId > 0)
                 {
+                    if (isAdmin)
+                    {
+                        AdminPanelButton.Visibility = Visibility.Visible;
+                    }
                     currentUserId = userId;
                     isLogin = true;
                     AfterLogin();
@@ -4458,11 +4463,7 @@ namespace LIB
             LoadReadingProgressData();
         }
 
-        private void AdminSettingsButton_Click(object sender, RoutedEventArgs e)
-        {
-            ShowAdminContent("Settings");
-            LoadSettingsData();
-        }
+        
 
         private void AdminBackupButton_Click(object sender, RoutedEventArgs e)
         {
@@ -4724,23 +4725,64 @@ namespace LIB
         {
             HideAllPanels();
             AdminPanel.Visibility = Visibility.Visible;
+            AdminLoadingPanel.Visibility = Visibility.Visible;
+            AdminMainContent.Visibility = Visibility.Visible;
+            AdminContentControl.Visibility = Visibility.Visible;
             ShowAdminMainContent();
         }
 
         private void ShowAdminMainContent()
         {
             HideAllPanels();
+            AdminPanel.Visibility = Visibility.Visible;
             AdminMainContent.Visibility = Visibility.Visible;
         }
 
-        private void ShowAdminContent(string contentType)
+        private async void ShowAdminContent(string contentType)
         {
+            TextBoxLoading.Text = contentType;
             HideAllPanels();
+            AdminPanel.Visibility = Visibility.Visible;
             AdminLoadingPanel.Visibility = Visibility.Visible;
             AdminContentControl.Visibility = Visibility.Visible;
 
             // Здесь можно динамически загружать соответствующий контент
             // в зависимости от contentType
+            if (contentType == "Books")
+            {
+                await Task.Delay(1000);
+                AdminLoadingPanel.Visibility = Visibility.Collapsed;
+            }
+            if (contentType == "BookFiles")
+            {
+                await Task.Delay(1000);
+                AdminLoadingPanel.Visibility = Visibility.Collapsed;
+            }
+            if (contentType == "Users")
+            {
+                await Task.Delay(1000);
+                AdminLoadingPanel.Visibility = Visibility.Collapsed;
+            }
+            if (contentType == "ReadingStats")
+            {
+                await Task.Delay(1000);
+                AdminLoadingPanel.Visibility = Visibility.Collapsed;
+            }
+            if (contentType == "UserBooks")
+            {
+                await Task.Delay(1000);
+                AdminLoadingPanel.Visibility = Visibility.Collapsed;
+            }
+            if (contentType == "Progress")
+            {
+                await Task.Delay(1000);
+                AdminLoadingPanel.Visibility = Visibility.Collapsed;
+            }
+            if (contentType == "Backup")
+            {
+                await Task.Delay(1000);
+                AdminLoadingPanel.Visibility = Visibility.Collapsed;
+            }
         }
 
         private void ShowAddBookDialog()

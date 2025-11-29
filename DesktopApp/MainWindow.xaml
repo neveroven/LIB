@@ -267,7 +267,7 @@
                             HorizontalAlignment="Stretch"
                             Style="{StaticResource RoundedButtonStyle}"
                             Click="AdminPanelButton_Click"
-                            Visibility="Visible"/>
+                            Visibility="Collapsed"/>
 
 
 
@@ -2325,9 +2325,9 @@
                                            Visibility="Collapsed"/>
                     </Grid>
                 </Grid>
-                <Grid x:Name="AdminPanel" Visibility="Collapsed" Margin="0,0,-20,452">
+                <Grid x:Name="AdminPanel" Visibility="Collapsed" Margin="0,0,-20,5">
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
@@ -2338,7 +2338,7 @@
             BorderThickness="1"
             CornerRadius="8"
             Padding="25"
-            Margin="0,0,0,20">
+            Margin="0,0,23,11">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
@@ -2385,10 +2385,12 @@
 
                         <!-- Боковая панель навигации -->
                         <Border Grid.Column="0"
-                Background="{DynamicResource ButtonBackgroundBrush}"
-                BorderBrush="{DynamicResource ButtonBorderBrush}"
-                BorderThickness="0,0,1,0"
-                Margin="0,0,20,0">
+                Background="{DynamicResource ButtonBackgroundBrush}" 
+BorderBrush="{DynamicResource ButtonBorderBrush}" 
+BorderThickness="1"
+CornerRadius="8"
+Padding="5"
+Margin="0,0,10,0">
                             <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <StackPanel Margin="15">
                                     <!-- Главная панель -->
@@ -2496,17 +2498,7 @@
                                Margin="0,15,0,5"
                                />
 
-                                    <Button x:Name="AdminSettingsButton"
-                            Content="⚙️ Настройки"
-                            Height="40"
-                            Margin="0,2"
-                            Background="{DynamicResource ButtonBackgroundBrush}"
-                            BorderBrush="{DynamicResource ButtonBorderBrush}"
-                            Foreground="{DynamicResource TextBrush}"
-                            FontSize="13"
-                            Style="{StaticResource RoundedButtonStyle}"
-                            Click="AdminSettingsButton_Click"/>
-
+                                    
                                     <Button x:Name="AdminBackupButton"
                             Content="💾 Резервное копирование"
                             Height="40"
@@ -2526,7 +2518,8 @@
                 Background="{DynamicResource ButtonBackgroundBrush}"
                 BorderBrush="{DynamicResource ButtonBorderBrush}"
                 BorderThickness="1"
-                CornerRadius="8">
+                CornerRadius="8"
+                                Margin="0,0,23,0">
                             <Grid>
                                 <!-- Панель загрузки -->
                                 <Border x:Name="AdminLoadingPanel"
@@ -2534,7 +2527,7 @@
                         CornerRadius="8"
                         Visibility="Visible">
                                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                                        <TextBlock Text="Загрузка..."
+                                        <TextBlock x:Name="TextBoxLoading" Text="Загрузка..."
                                    FontSize="16"
                                    FontWeight="SemiBold"
                                    Foreground="{DynamicResource TextBrush}"
@@ -2548,7 +2541,9 @@
                                 <ScrollViewer x:Name="AdminMainContent"
                               VerticalScrollBarVisibility="Auto"
                               Visibility="Collapsed">
-                                    <StackPanel Margin="20">
+                                    <StackPanel Margin="25"
+                                                
+                                                >
                                         <!-- Приветственная информация -->
                                         <Border Background="{DynamicResource ButtonBackgroundBrush}"
                                 BorderBrush="{DynamicResource ButtonBorderBrush}"
@@ -2675,7 +2670,7 @@
                                    FontSize="16"
                                    FontWeight="Bold"
                                    Foreground="{DynamicResource TextBrush}"
-                                   Margin="0,30,0,15"/>
+                                   Margin="0,475,0,15"/>
 
                                         <WrapPanel Margin="0,0,0,20">
                                             <Button Content="📚 Добавить книгу"
