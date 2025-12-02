@@ -814,26 +814,6 @@ namespace LIB
                             catalogBooks.Remove(book);
                             UpdateBooksDisplay();
                             UpdateBooksGridDisplay();
-                            //// Удаляем файлы книги
-                            //if (book.BookId > 0)
-                            //{
-                            //    using (var command = new MySqlCommand(
-                            //        "DELETE FROM book_files WHERE book_id = @book_id",
-                            //        conn, transaction))
-                            //    {
-                            //        command.Parameters.AddWithValue("@book_id", book.BookId);
-                            //        command.ExecuteNonQuery();
-                            //    }
-
-                            //    // Удаляем саму книгу
-                            //    using (var command = new MySqlCommand(
-                            //        "DELETE FROM books WHERE id = @id",
-                            //        conn, transaction))
-                            //    {
-                            //        command.Parameters.AddWithValue("@id", book.BookId);
-                            //        command.ExecuteNonQuery();
-                            //    }
-                            //}
 
                             transaction.Commit();
                         }
@@ -2169,101 +2149,6 @@ namespace LIB
 
             return content;
         }
-
-        /// Форматирует размер файла в читаемый вид
-
-        private string FormatFileSize(long bytes)
-        {
-            string[] sizes = { "B", "KB", "MB", "GB", "TB" };
-            double len = bytes;
-            int order = 0;
-            while (len >= 1024 && order < sizes.Length - 1)
-            {
-                order++;
-                len = len / 1024;
-            }
-            return $"{len:0.##} {sizes[order]}";
-        }
-
-        /// Извлекает базовую информацию из PDF файла
-
-        private string ExtractBasicPdfInfo(string filePath)
-        {
-            try
-            {
-                // Читаем первые несколько килобайт файла для поиска метаданных
-                using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
-                {
-                    var buffer = new byte[Math.Min(8192, (int)fileStream.Length)];
-                    int bytesRead = fileStream.Read(buffer, 0, buffer.Length);
-                    string content = Encoding.UTF8.GetString(buffer);
-
-                    var result = new StringBuilder();
-
-                    // Ищем базовые метаданные в PDF
-                    if (content.Contains("/Title"))
-                    {
-                        var titleMatch = System.Text.RegularExpressions.Regex.Match(content, @"/Title\s*\(([^)]+)\)");
-                        if (titleMatch.Success)
-                        {
-                            result.AppendLine($"📚 Название: {titleMatch.Groups[1].Value}");
-                        }
-                    }
-
-                    if (content.Contains("/Author"))
-                    {
-                        var authorMatch = System.Text.RegularExpressions.Regex.Match(content, @"/Author\s*\(([^)]+)\)");
-                        if (authorMatch.Success)
-                        {
-                            result.AppendLine($"✍️ Автор: {authorMatch.Groups[1].Value}");
-                        }
-                    }
-
-                    if (content.Contains("/Subject"))
-                    {
-                        var subjectMatch = System.Text.RegularExpressions.Regex.Match(content, @"/Subject\s*\(([^)]+)\)");
-                        if (subjectMatch.Success)
-                        {
-                            result.AppendLine($"📝 Тема: {subjectMatch.Groups[1].Value}");
-                        }
-                    }
-
-                    if (content.Contains("/Creator"))
-                    {
-                        var creatorMatch = System.Text.RegularExpressions.Regex.Match(content, @"/Creator\s*\(([^)]+)\)");
-                        if (creatorMatch.Success)
-                        {
-                            result.AppendLine($"🛠️ Создано в: {creatorMatch.Groups[1].Value}");
-                        }
-                    }
-
-                    if (content.Contains("/Producer"))
-                    {
-                        var producerMatch = System.Text.RegularExpressions.Regex.Match(content, @"/Producer\s*\(([^)]+)\)");
-                        if (producerMatch.Success)
-                        {
-                            result.AppendLine($"⚙️ Обработано: {producerMatch.Groups[1].Value}");
-                        }
-                    }
-
-                    // Ищем количество страниц
-                    var pageCountMatch = System.Text.RegularExpressions.Regex.Match(content, @"/Count\s+(\d+)");
-                    if (pageCountMatch.Success)
-                    {
-                        result.AppendLine($"📊 Количество страниц: {pageCountMatch.Groups[1].Value}");
-                    }
-
-                    return result.ToString();
-                }
-            }
-            catch
-            {
-                return "";
-            }
-        }
-
-        /// Очищает и форматирует текст из PDF
-
         private string CleanPdfText(string pdfText)
         {
             if (string.IsNullOrEmpty(pdfText))
@@ -2572,36 +2457,6 @@ namespace LIB
             }
         }
 
-        /// Обработчик нажатий клавиш для навигации по страницам
-
-        //private void MainWindow_KeyDown(object sender, KeyEventArgs e)
-        //{
-        //    if (ReadingPanel.Visibility == Visibility.Visible && bookPages.Count > 0)
-        //    {
-        //        switch (e.Key)
-        //        {
-        //            case Key.Left:
-        //            case Key.PageUp:
-        //                GoToPreviousPage();
-        //                e.Handled = true;
-        //                break;
-        //            case Key.Right:
-        //            case Key.PageDown:
-        //            case Key.Space:
-        //                GoToNextPage();
-        //                e.Handled = true;
-        //                break;
-        //            case Key.Home:
-        //                GoToFirstPage();
-        //                e.Handled = true;
-        //                break;
-        //            case Key.End:
-        //                GoToLastPage();
-        //                e.Handled = true;
-        //                break;
-        //        }
-        //    }
-        //}
 
         /// Переход на предыдущую страницу
 
@@ -3661,102 +3516,6 @@ namespace LIB
             }
         }
 
-        /// <summary>
-        /// Обновляет статус книги в списке чтения пользователя
-        /// </summary>
-        private void UpdateUserBookStatus(int userId, int bookId, string status)
-        {
-            try
-            {
-                using (var conn = new MySqlConnection(conectionString))
-                {
-                    conn.Open();
-
-                    using (var command = new MySqlCommand(
-                        "UPDATE user_books SET status = @status WHERE user_id = @user_id AND book_id = @book_id",
-                        conn))
-                    {
-                        command.Parameters.AddWithValue("@user_id", userId);
-                        command.Parameters.AddWithValue("@book_id", bookId);
-                        command.Parameters.AddWithValue("@status", status);
-                        command.ExecuteNonQuery();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка при обновлении статуса книги: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        /// <summary>
-        /// Получает список книг пользователя с их статусами
-        /// </summary>
-        private List<UserBook> GetUserBooks(int userId)
-        {
-            var userBooks = new List<UserBook>();
-            try
-            {
-                using (var conn = new MySqlConnection(conectionString))
-                {
-                    conn.Open();
-
-                    using (var command = new MySqlCommand(
-                        "SELECT * FROM user_books WHERE user_id = @user_id",
-                        conn))
-                    {
-                        command.Parameters.AddWithValue("@user_id", userId);
-
-                        using (var reader = command.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                userBooks.Add(new UserBook
-                                {
-                                    UserId = reader.GetInt32("user_id"),
-                                    BookId = reader.GetInt32("book_id"),
-                                    Status = reader.GetString("status")
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка при загрузке списка чтения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-            return userBooks;
-        }
-
-        /// <summary>
-        /// Удаляет книгу из списка чтения пользователя
-        /// </summary>
-        private void RemoveUserBook(int userId, int bookId)
-        {
-            try
-            {
-                using (var conn = new MySqlConnection(conectionString))
-                {
-                    conn.Open();
-
-                    using (var command = new MySqlCommand(
-                        "DELETE FROM user_books WHERE user_id = @user_id AND book_id = @book_id",
-                        conn))
-                    {
-                        command.Parameters.AddWithValue("@user_id", userId);
-                        command.Parameters.AddWithValue("@book_id", bookId);
-                        command.ExecuteNonQuery();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Ошибка при удалении книги из списка чтения: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        /// <summary>
         /// Обработчик кнопки настроек
         /// </summary>
         private void SettingsButton_Click(object sender, RoutedEventArgs e)
@@ -4752,6 +4511,7 @@ namespace LIB
             {
                 await Task.Delay(1000);
                 AdminLoadingPanel.Visibility = Visibility.Collapsed;
+
             }
             if (contentType == "BookFiles")
             {
@@ -4787,8 +4547,6 @@ namespace LIB
 
         private void ShowAddBookDialog()
         {
-            
-                // Книга добавлена, обновляем данные
                 LoadBooksData();
                 LoadAdminStatistics();
             
