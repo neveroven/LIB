@@ -166,6 +166,15 @@ namespace LIB
         private bool isAdmin = false; // Флаг администратора
         private string currentXmlContent = "";
         private string dbFolderPath = ""; // Путь к папке DB для серверных книг
+        private string currentAdminContentType = "";
+        private class FormField
+        {
+            public string Key { get; set; } = "";
+            public string Label { get; set; } = "";
+            public string DefaultValue { get; set; } = "";
+            // text, number, bool, datetime
+            public string Type { get; set; } = "text";
+        }
         private void index_found() //Костыль для LocalBookID
         {
             if (num_index == -1 || books.Count == 0)
@@ -4316,6 +4325,7 @@ namespace LIB
                     connection.Open();
                     string query = @"
                 SELECT 
+                    id AS 'ID',
                     title AS 'Название',
                     author AS 'Автор',
                     published_year AS 'Год издания',
@@ -4350,6 +4360,8 @@ namespace LIB
                     connection.Open();
                     string query = @"
                 SELECT 
+                    bf.id AS 'ID',
+                    bf.book_id AS 'ID книги',
                     b.title AS 'Название книги',
                     b.author AS 'Автор',
                     bf.format AS 'Формат',
@@ -4388,10 +4400,11 @@ namespace LIB
                     connection.Open();
                     string query = @"
                 SELECT 
+                    UID AS 'ID',
                     User_login AS 'Логин',
                     Is_admin AS 'Администратор'
                 FROM users
-                ORDER BY User_login";
+                ORDER BY UID";
 
                     using (MySqlCommand cmd = new MySqlCommand(query, connection))
                     {
@@ -4452,9 +4465,12 @@ namespace LIB
                     connection.Open();
                     string query = @"
                 SELECT 
+                    ub.id AS 'ID',
                     u.User_login AS 'Логин',
+                    ub.user_id AS 'ID пользователя',
                     b.title AS 'Название книги',
                     b.author AS 'Автор',
+                    ub.book_id AS 'ID книги',
                     ub.status AS 'Статус',
                     ub.added_at AS 'Добавлено',
                     bf.file_name AS 'Имя файла',
@@ -4491,11 +4507,14 @@ namespace LIB
                     connection.Open();
                     string query = @"
                 SELECT 
+                    rp.id AS 'ID',
                     u.User_login AS 'Логин',
+                    rp.user_id AS 'ID пользователя',
                     b.title AS 'Книга',
                     b.author AS 'Автор',
                     bf.file_name AS 'Файл',
                     bf.format AS 'Формат',
+                    rp.book_file_id AS 'ID файла',
                     rp.current_page AS 'Текущая страница',
                     rp.total_pages AS 'Всего страниц',
                     rp.progress_percent AS 'Прогресс %',
@@ -4675,6 +4694,891 @@ namespace LIB
             }
         }
 
+        private void AdminAddRecord_Click(object sender, RoutedEventArgs e)
+        {
+            if (currentAdminContentType == "Backup")
+            {
+                CreateBackup();
+                return;
+            }
+
+            switch (currentAdminContentType)
+            {
+                case "Books":
+                    AddBookRecord();
+                    break;
+                case "BookFiles":
+                    AddBookFileRecord();
+                    break;
+                case "Users":
+                    AddUserRecord();
+                    break;
+                case "UserBooks":
+                    AddUserBookRecord();
+                    break;
+                case "Progress":
+                    AddReadingProgressRecord();
+                    break;
+                default:
+                    MessageBox.Show("Добавление для этого раздела пока не реализовано.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                    break;
+            }
+        }
+
+        private void AdminEditRecord_Click(object sender, RoutedEventArgs e)
+        {
+            if (currentAdminContentType == "Backup")
+            {
+                var row = AdminDataGrid.SelectedItem as DataRowView;
+                if (row == null)
+                {
+                    MessageBox.Show("Выберите резервную копию для переименования.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                string path = row["Путь"]?.ToString();
+                if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                {
+                    MessageBox.Show("Неверный файл резервной копии.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                string newName = PromptForText("Переименование бэкапа", "Новое имя файла (без пути):", System.IO.Path.GetFileName(path));
+                if (string.IsNullOrWhiteSpace(newName))
+                    return;
+
+                string dir = System.IO.Path.GetDirectoryName(path) ?? "";
+                string newPath = System.IO.Path.Combine(dir, newName);
+
+                try
+                {
+                    File.Move(path, newPath);
+                    LoadBackupData();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Не удалось переименовать файл: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                return;
+            }
+
+            switch (currentAdminContentType)
+            {
+                case "Books":
+                    EditBookRecord();
+                    break;
+                case "BookFiles":
+                    EditBookFileRecord();
+                    break;
+                case "Users":
+                    EditUserRecord();
+                    break;
+                case "UserBooks":
+                    EditUserBookRecord();
+                    break;
+                case "Progress":
+                    EditReadingProgressRecord();
+                    break;
+                default:
+                    MessageBox.Show("Редактирование для этого раздела пока не реализовано.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                    break;
+            }
+        }
+
+        private void AdminDeleteRecord_Click(object sender, RoutedEventArgs e)
+        {
+            if (currentAdminContentType == "Backup")
+            {
+                var row = AdminDataGrid.SelectedItem as DataRowView;
+                if (row == null)
+                {
+                    MessageBox.Show("Выберите резервную копию для удаления.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                string path = row["Путь"]?.ToString();
+                if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+                {
+                    MessageBox.Show("Неверный файл резервной копии.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                var confirm = MessageBox.Show($"Удалить резервную копию?\n{System.IO.Path.GetFileName(path)}", "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (confirm == MessageBoxResult.Yes)
+                {
+                    try
+                    {
+                        File.Delete(path);
+                        LoadBackupData();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Не удалось удалить файл: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+                return;
+            }
+
+            switch (currentAdminContentType)
+            {
+                case "Books":
+                    DeleteBookRecord();
+                    break;
+                case "BookFiles":
+                    DeleteBookFileRecord();
+                    break;
+                case "Users":
+                    DeleteUserRecord();
+                    break;
+                case "UserBooks":
+                    DeleteUserBookRecord();
+                    break;
+                case "Progress":
+                    DeleteReadingProgressRecord();
+                    break;
+                default:
+                    MessageBox.Show("Удаление для этого раздела пока не реализовано.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                    break;
+            }
+        }
+
+        private DataRowView? GetSelectedRow()
+        {
+            return AdminDataGrid.SelectedItem as DataRowView;
+        }
+
+        private void RefreshCurrentAdminContent()
+        {
+            switch (currentAdminContentType)
+            {
+                case "Books": LoadBooksData(); break;
+                case "BookFiles": LoadBookFilesData(); break;
+                case "Users": LoadUsersData(); break;
+                case "UserBooks": LoadUserBooksData(); break;
+                case "Progress": LoadReadingProgressData(); break;
+                case "Backup": LoadBackupData(); break;
+                case "ReadingStats": LoadReadingStatistics(); break;
+                default: break;
+            }
+        }
+
+        private void AddBookRecord()
+        {
+            var form = PromptForForm("Добавить книгу", new List<FormField>
+            {
+                new FormField{ Key="title", Label="Название", DefaultValue="" },
+                new FormField{ Key="author", Label="Автор", DefaultValue="" },
+                new FormField{ Key="year", Label="Год издания", DefaultValue="" , Type="number"},
+                new FormField{ Key="language", Label="Язык", DefaultValue="" },
+                new FormField{ Key="series", Label="Серия", DefaultValue="" }
+            });
+            if (form == null) return;
+
+            using (var conn = new MySqlConnection(conectionString))
+            {
+                conn.Open();
+                using (var cmd = new MySqlCommand(
+                    "INSERT INTO books (title, author, published_year, language, series) VALUES (@title, @author, @year, @language, @series)",
+                    conn))
+                {
+                    cmd.Parameters.AddWithValue("@title", form["title"]);
+                    cmd.Parameters.AddWithValue("@author", string.IsNullOrWhiteSpace(form["author"]) ? (object)DBNull.Value : form["author"]);
+                    if (int.TryParse(form["year"], out int year))
+                        cmd.Parameters.AddWithValue("@year", year);
+                    else
+                        cmd.Parameters.AddWithValue("@year", DBNull.Value);
+                    cmd.Parameters.AddWithValue("@language", string.IsNullOrWhiteSpace(form["language"]) ? (object)DBNull.Value : form["language"]);
+                    cmd.Parameters.AddWithValue("@series", string.IsNullOrWhiteSpace(form["series"]) ? (object)DBNull.Value : form["series"]);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            RefreshCurrentAdminContent();
+        }
+
+        private void EditBookRecord()
+        {
+            var row = GetSelectedRow();
+            if (row == null)
+            {
+                MessageBox.Show("Выберите запись.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (!int.TryParse(row["ID"].ToString(), out int id)) return;
+
+            var form = PromptForForm("Редактировать книгу", new List<FormField>
+            {
+                new FormField{ Key="title", Label="Название", DefaultValue=row["Название"].ToString() },
+                new FormField{ Key="author", Label="Автор", DefaultValue=row["Автор"].ToString() },
+                new FormField{ Key="year", Label="Год издания", DefaultValue=row["Год издания"].ToString(), Type="number" },
+                new FormField{ Key="language", Label="Язык", DefaultValue=row["Язык"].ToString() },
+                new FormField{ Key="series", Label="Серия", DefaultValue=row["Серия"].ToString() }
+            });
+            if (form == null) return;
+
+            using (var conn = new MySqlConnection(conectionString))
+            {
+                conn.Open();
+                using (var cmd = new MySqlCommand(
+                    "UPDATE books SET title=@title, author=@author, published_year=@year, language=@language, series=@series WHERE id=@id",
+                    conn))
+                {
+                    cmd.Parameters.AddWithValue("@id", id);
+                    cmd.Parameters.AddWithValue("@title", form["title"]);
+                    cmd.Parameters.AddWithValue("@author", string.IsNullOrWhiteSpace(form["author"]) ? (object)DBNull.Value : form["author"]);
+                    if (int.TryParse(form["year"], out int year))
+                        cmd.Parameters.AddWithValue("@year", year);
+                    else
+                        cmd.Parameters.AddWithValue("@year", DBNull.Value);
+                    cmd.Parameters.AddWithValue("@language", string.IsNullOrWhiteSpace(form["language"]) ? (object)DBNull.Value : form["language"]);
+                    cmd.Parameters.AddWithValue("@series", string.IsNullOrWhiteSpace(form["series"]) ? (object)DBNull.Value : form["series"]);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            RefreshCurrentAdminContent();
+        }
+
+        private void DeleteBookRecord()
+        {
+            var row = GetSelectedRow();
+            if (row == null)
+            {
+                MessageBox.Show("Выберите запись.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (!int.TryParse(row["ID"].ToString(), out int id)) return;
+
+            var confirm = MessageBox.Show($"Удалить книгу \"{row["Название"]}\"?", "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (confirm != MessageBoxResult.Yes) return;
+
+            using (var conn = new MySqlConnection(conectionString))
+            {
+                conn.Open();
+                using (var cmd = new MySqlCommand("DELETE FROM books WHERE id=@id", conn))
+                {
+                    cmd.Parameters.AddWithValue("@id", id);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            RefreshCurrentAdminContent();
+        }
+
+        private void AddBookFileRecord()
+        {
+            var form = PromptForForm("Добавить файл книги", new List<FormField>
+            {
+                new FormField{ Key="book_id", Label="ID книги", DefaultValue="", Type="number" },
+                new FormField{ Key="format", Label="Формат", DefaultValue="" },
+                new FormField{ Key="source_type", Label="Источник (local/server)", DefaultValue="local" },
+                new FormField{ Key="local_path", Label="Локальный путь", DefaultValue="" },
+                new FormField{ Key="server_uri", Label="URL", DefaultValue="" },
+                new FormField{ Key="file_name", Label="Имя файла", DefaultValue="" },
+                new FormField{ Key="cover", Label="Обложка (uri)", DefaultValue="" }
+            });
+            if (form == null) return;
+
+            using (var conn = new MySqlConnection(conectionString))
+            {
+                conn.Open();
+                using (var cmd = new MySqlCommand(
+                    "INSERT INTO book_files (book_id, format, source_type, local_path, server_uri, file_name, cover_image_uri) VALUES (@book_id, @format, @source_type, @local_path, @server_uri, @file_name, @cover)",
+                    conn))
+                {
+                    cmd.Parameters.AddWithValue("@book_id", int.TryParse(form["book_id"], out int bid) ? bid : 0);
+                    cmd.Parameters.AddWithValue("@format", form["format"]);
+                    cmd.Parameters.AddWithValue("@source_type", form["source_type"]);
+                    cmd.Parameters.AddWithValue("@local_path", form["local_path"]);
+                    cmd.Parameters.AddWithValue("@server_uri", form["server_uri"]);
+                    cmd.Parameters.AddWithValue("@file_name", form["file_name"]);
+                    cmd.Parameters.AddWithValue("@cover", string.IsNullOrWhiteSpace(form["cover"]) ? (object)DBNull.Value : form["cover"]);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            RefreshCurrentAdminContent();
+        }
+
+        private void EditBookFileRecord()
+        {
+            var row = GetSelectedRow();
+            if (row == null)
+            {
+                MessageBox.Show("Выберите запись.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (!int.TryParse(row["ID"].ToString(), out int id)) return;
+
+            var form = PromptForForm("Редактировать файл книги", new List<FormField>
+            {
+                new FormField{ Key="book_id", Label="ID книги", DefaultValue=row["ID книги"].ToString(), Type="number" },
+                new FormField{ Key="format", Label="Формат", DefaultValue=row["Формат"].ToString() },
+                new FormField{ Key="source_type", Label="Источник", DefaultValue=row["Источник"].ToString() },
+                new FormField{ Key="local_path", Label="Локальный путь", DefaultValue=row["Локальный путь"].ToString() },
+                new FormField{ Key="server_uri", Label="URL", DefaultValue=row["URL"].ToString() },
+                new FormField{ Key="file_name", Label="Имя файла", DefaultValue=row["Имя файла"].ToString() },
+                new FormField{ Key="cover", Label="Обложка", DefaultValue=row["Обложка"].ToString() }
+            });
+            if (form == null) return;
+
+            using (var conn = new MySqlConnection(conectionString))
+            {
+                conn.Open();
+                using (var cmd = new MySqlCommand(
+                    @"UPDATE book_files SET 
+                        book_id=@book_id,
+                        format=@format,
+                        source_type=@source_type,
+                        local_path=@local_path,
+                        server_uri=@server_uri,
+                        file_name=@file_name,
+                        cover_image_uri=@cover
+                      WHERE id=@id",
+                    conn))
+                {
+                    cmd.Parameters.AddWithValue("@id", id);
+                    cmd.Parameters.AddWithValue("@book_id", int.TryParse(form["book_id"], out int bid) ? bid : 0);
+                    cmd.Parameters.AddWithValue("@format", form["format"]);
+                    cmd.Parameters.AddWithValue("@source_type", form["source_type"]);
+                    cmd.Parameters.AddWithValue("@local_path", form["local_path"]);
+                    cmd.Parameters.AddWithValue("@server_uri", form["server_uri"]);
+                    cmd.Parameters.AddWithValue("@file_name", form["file_name"]);
+                    cmd.Parameters.AddWithValue("@cover", string.IsNullOrWhiteSpace(form["cover"]) ? (object)DBNull.Value : form["cover"]);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            RefreshCurrentAdminContent();
+        }
+
+        private void DeleteBookFileRecord()
+        {
+            var row = GetSelectedRow();
+            if (row == null)
+            {
+                MessageBox.Show("Выберите запись.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (!int.TryParse(row["ID"].ToString(), out int id)) return;
+
+            var confirm = MessageBox.Show($"Удалить файл книги \"{row["Имя файла"]}\"?", "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (confirm != MessageBoxResult.Yes) return;
+
+            using (var conn = new MySqlConnection(conectionString))
+            {
+                conn.Open();
+                using (var cmd = new MySqlCommand("DELETE FROM book_files WHERE id=@id", conn))
+                {
+                    cmd.Parameters.AddWithValue("@id", id);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            RefreshCurrentAdminContent();
+        }
+
+        private void AddUserRecord()
+        {
+            var form = PromptForForm("Добавить пользователя", new List<FormField>
+            {
+                new FormField{ Key="login", Label="Логин", DefaultValue="" },
+                new FormField{ Key="password", Label="Пароль", DefaultValue="" },
+                new FormField{ Key="is_admin", Label="Администратор", DefaultValue="0", Type="bool" }
+            });
+            if (form == null) return;
+            if (string.IsNullOrWhiteSpace(form["password"]))
+            {
+                MessageBox.Show("Пароль не может быть пустым.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            using (var conn = new MySqlConnection(conectionString))
+            {
+                conn.Open();
+                using (var cmd = new MySqlCommand(
+                    "INSERT INTO users (User_login, User_password, Is_admin) VALUES (@login, @password, @is_admin)",
+                    conn))
+                {
+                    cmd.Parameters.AddWithValue("@login", form["login"]);
+                    cmd.Parameters.AddWithValue("@password", form["password"]);
+                    cmd.Parameters.AddWithValue("@is_admin", form["is_admin"] == "1");
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            RefreshCurrentAdminContent();
+        }
+
+        private void EditUserRecord()
+        {
+            var row = GetSelectedRow();
+            if (row == null)
+            {
+                MessageBox.Show("Выберите запись.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (!int.TryParse(row["ID"].ToString(), out int id)) return;
+
+            var form = PromptForForm("Редактировать пользователя", new List<FormField>
+            {
+                new FormField{ Key="login", Label="Логин", DefaultValue=row["Логин"].ToString() },
+                new FormField{ Key="password", Label="Пароль (оставьте пустым чтобы не менять)", DefaultValue="" },
+                new FormField{ Key="is_admin", Label="Администратор", DefaultValue=(row["Администратор"].ToString() == "True" || row["Администратор"].ToString() == "1") ? "1" : "0", Type="bool" }
+            });
+            if (form == null) return;
+
+            using (var conn = new MySqlConnection(conectionString))
+            {
+                conn.Open();
+                string sql = string.IsNullOrWhiteSpace(form["password"])
+                    ? "UPDATE users SET User_login=@login, Is_admin=@is_admin WHERE UID=@id"
+                    : "UPDATE users SET User_login=@login, User_password=@password, Is_admin=@is_admin WHERE UID=@id";
+
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@id", id);
+                    cmd.Parameters.AddWithValue("@login", form["login"]);
+                    cmd.Parameters.AddWithValue("@is_admin", form["is_admin"] == "1");
+                    if (!string.IsNullOrWhiteSpace(form["password"]))
+                        cmd.Parameters.AddWithValue("@password", form["password"]);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            RefreshCurrentAdminContent();
+        }
+
+        private void DeleteUserRecord()
+        {
+            var row = GetSelectedRow();
+            if (row == null)
+            {
+                MessageBox.Show("Выберите запись.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (!int.TryParse(row["ID"].ToString(), out int id)) return;
+
+            var confirm = MessageBox.Show($"Удалить пользователя \"{row["Логин"]}\"?", "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (confirm != MessageBoxResult.Yes) return;
+
+            using (var conn = new MySqlConnection(conectionString))
+            {
+                conn.Open();
+                using (var cmd = new MySqlCommand("DELETE FROM users WHERE UID=@id", conn))
+                {
+                    cmd.Parameters.AddWithValue("@id", id);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            RefreshCurrentAdminContent();
+        }
+
+        private void AddUserBookRecord()
+        {
+            var form = PromptForForm("Добавить книгу пользователю", new List<FormField>
+            {
+                new FormField{ Key="user_id", Label="ID пользователя", DefaultValue="", Type="number" },
+                new FormField{ Key="book_id", Label="ID книги", DefaultValue="", Type="number" },
+                new FormField{ Key="status", Label="Статус", DefaultValue="planned" }
+            });
+            if (form == null) return;
+
+            using (var conn = new MySqlConnection(conectionString))
+            {
+                conn.Open();
+                using (var cmd = new MySqlCommand(
+                    "INSERT INTO user_books (user_id, book_id, status) VALUES (@user_id, @book_id, @status)",
+                    conn))
+                {
+                    cmd.Parameters.AddWithValue("@user_id", int.TryParse(form["user_id"], out int uid) ? uid : 0);
+                    cmd.Parameters.AddWithValue("@book_id", int.TryParse(form["book_id"], out int bid) ? bid : 0);
+                    cmd.Parameters.AddWithValue("@status", form["status"]);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            RefreshCurrentAdminContent();
+        }
+
+        private void EditUserBookRecord()
+        {
+            var row = GetSelectedRow();
+            if (row == null)
+            {
+                MessageBox.Show("Выберите запись.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (!int.TryParse(row["ID"].ToString(), out int id)) return;
+
+            var form = PromptForForm("Редактировать запись пользователя-книги", new List<FormField>
+            {
+                new FormField{ Key="user_id", Label="ID пользователя", DefaultValue=row["ID пользователя"].ToString(), Type="number" },
+                new FormField{ Key="book_id", Label="ID книги", DefaultValue=row["ID книги"].ToString(), Type="number" },
+                new FormField{ Key="status", Label="Статус", DefaultValue=row["Статус"].ToString() }
+            });
+            if (form == null) return;
+
+            using (var conn = new MySqlConnection(conectionString))
+            {
+                conn.Open();
+                using (var cmd = new MySqlCommand(
+                    "UPDATE user_books SET user_id=@user_id, book_id=@book_id, status=@status WHERE id=@id",
+                    conn))
+                {
+                    cmd.Parameters.AddWithValue("@id", id);
+                    cmd.Parameters.AddWithValue("@user_id", int.TryParse(form["user_id"], out int uid) ? uid : 0);
+                    cmd.Parameters.AddWithValue("@book_id", int.TryParse(form["book_id"], out int bid) ? bid : 0);
+                    cmd.Parameters.AddWithValue("@status", form["status"]);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            RefreshCurrentAdminContent();
+        }
+
+        private void DeleteUserBookRecord()
+        {
+            var row = GetSelectedRow();
+            if (row == null)
+            {
+                MessageBox.Show("Выберите запись.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (!int.TryParse(row["ID"].ToString(), out int id)) return;
+
+            var confirm = MessageBox.Show($"Удалить связь пользователя \"{row["Логин"]}\" с книгой \"{row["Название книги"]}\"?", "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (confirm != MessageBoxResult.Yes) return;
+
+            using (var conn = new MySqlConnection(conectionString))
+            {
+                conn.Open();
+                using (var cmd = new MySqlCommand("DELETE FROM user_books WHERE id=@id", conn))
+                {
+                    cmd.Parameters.AddWithValue("@id", id);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            RefreshCurrentAdminContent();
+        }
+
+        private void AddReadingProgressRecord()
+        {
+            var form = PromptForForm("Добавить прогресс чтения", new List<FormField>
+            {
+                new FormField{ Key="user_id", Label="ID пользователя", DefaultValue="", Type="number" },
+                new FormField{ Key="book_file_id", Label="ID файла", DefaultValue="", Type="number" },
+                new FormField{ Key="current_page", Label="Текущая страница", DefaultValue="0", Type="number" },
+                new FormField{ Key="total_pages", Label="Всего страниц", DefaultValue="0", Type="number" },
+                new FormField{ Key="progress_percent", Label="Прогресс %", DefaultValue="0", Type="number" }
+            });
+            if (form == null) return;
+
+            using (var conn = new MySqlConnection(conectionString))
+            {
+                conn.Open();
+                using (var cmd = new MySqlCommand(
+                    "INSERT INTO reading_progress (user_id, book_file_id, current_page, total_pages, progress_percent, last_read_at) VALUES (@user_id, @book_file_id, @current_page, @total_pages, @progress_percent, NOW())",
+                    conn))
+                {
+                    cmd.Parameters.AddWithValue("@user_id", int.TryParse(form["user_id"], out int uid) ? uid : 0);
+                    cmd.Parameters.AddWithValue("@book_file_id", int.TryParse(form["book_file_id"], out int bf) ? bf : 0);
+                    cmd.Parameters.AddWithValue("@current_page", int.TryParse(form["current_page"], out int cp) ? cp : 0);
+                    cmd.Parameters.AddWithValue("@total_pages", int.TryParse(form["total_pages"], out int tp) ? tp : 0);
+                    cmd.Parameters.AddWithValue("@progress_percent", double.TryParse(form["progress_percent"], out double pr) ? pr : 0);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            RefreshCurrentAdminContent();
+        }
+
+        private void EditReadingProgressRecord()
+        {
+            var row = GetSelectedRow();
+            if (row == null)
+            {
+                MessageBox.Show("Выберите запись.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (!int.TryParse(row["ID"].ToString(), out int id)) return;
+
+            var form = PromptForForm("Редактировать прогресс чтения", new List<FormField>
+            {
+                new FormField{ Key="user_id", Label="ID пользователя", DefaultValue=row["ID пользователя"].ToString(), Type="number" },
+                new FormField{ Key="book_file_id", Label="ID файла", DefaultValue=row["ID файла"].ToString(), Type="number" },
+                new FormField{ Key="current_page", Label="Текущая страница", DefaultValue=row["Текущая страница"].ToString(), Type="number" },
+                new FormField{ Key="total_pages", Label="Всего страниц", DefaultValue=row["Всего страниц"].ToString(), Type="number" },
+                new FormField{ Key="progress_percent", Label="Прогресс %", DefaultValue=row["Прогресс %"].ToString(), Type="number" }
+            });
+            if (form == null) return;
+
+            using (var conn = new MySqlConnection(conectionString))
+            {
+                conn.Open();
+                using (var cmd = new MySqlCommand(
+                    @"UPDATE reading_progress 
+                      SET user_id=@user_id, book_file_id=@book_file_id, current_page=@current_page, total_pages=@total_pages, progress_percent=@progress_percent, last_read_at=NOW()
+                      WHERE id=@id",
+                    conn))
+                {
+                    cmd.Parameters.AddWithValue("@id", id);
+                    cmd.Parameters.AddWithValue("@user_id", int.TryParse(form["user_id"], out int uid) ? uid : 0);
+                    cmd.Parameters.AddWithValue("@book_file_id", int.TryParse(form["book_file_id"], out int bf) ? bf : 0);
+                    cmd.Parameters.AddWithValue("@current_page", int.TryParse(form["current_page"], out int cp) ? cp : 0);
+                    cmd.Parameters.AddWithValue("@total_pages", int.TryParse(form["total_pages"], out int tp) ? tp : 0);
+                    cmd.Parameters.AddWithValue("@progress_percent", double.TryParse(form["progress_percent"], out double pr) ? pr : 0);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            RefreshCurrentAdminContent();
+        }
+
+        private void DeleteReadingProgressRecord()
+        {
+            var row = GetSelectedRow();
+            if (row == null)
+            {
+                MessageBox.Show("Выберите запись.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+            if (!int.TryParse(row["ID"].ToString(), out int id)) return;
+
+            var confirm = MessageBox.Show($"Удалить прогресс пользователя \"{row["Логин"]}\" по книге \"{row["Книга"]}\"?", "Подтверждение", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (confirm != MessageBoxResult.Yes) return;
+
+            using (var conn = new MySqlConnection(conectionString))
+            {
+                conn.Open();
+                using (var cmd = new MySqlCommand("DELETE FROM reading_progress WHERE id=@id", conn))
+                {
+                    cmd.Parameters.AddWithValue("@id", id);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            RefreshCurrentAdminContent();
+        }
+
+        private string PromptForText(string title, string label, string defaultValue = "")
+        {
+            var dialog = new Window
+            {
+                Title = title,
+                Width = 400,
+                Height = 180,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize,
+                Background = this.Resources["WindowBackgroundBrush"] as SolidColorBrush
+            };
+
+            var grid = new Grid { Margin = new Thickness(15) };
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var lbl = new TextBlock
+            {
+                Text = label,
+                Margin = new Thickness(0, 0, 0, 8),
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush
+            };
+            Grid.SetRow(lbl, 0);
+
+            var tb = new TextBox
+            {
+                Text = defaultValue,
+                Height = 32,
+                Padding = new Thickness(8, 4, 8, 4),
+                Background = Brushes.White,
+                Foreground = Brushes.Black
+            };
+            Grid.SetRow(tb, 1);
+
+            var buttons = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 12, 0, 0)
+            };
+
+            var ok = new Button
+            {
+                Content = "OK",
+                Width = 80,
+                Height = 30,
+                Margin = new Thickness(0, 0, 8, 0),
+                Style = this.Resources["RoundedButtonStyle"] as Style,
+                Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
+                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush
+            };
+            var cancel = new Button
+            {
+                Content = "Отмена",
+                Width = 80,
+                Height = 30,
+                Style = this.Resources["RoundedButtonStyle"] as Style,
+                Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
+                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush
+            };
+
+            buttons.Children.Add(ok);
+            buttons.Children.Add(cancel);
+            Grid.SetRow(buttons, 2);
+
+            grid.Children.Add(lbl);
+            grid.Children.Add(tb);
+            grid.Children.Add(buttons);
+
+            dialog.Content = grid;
+
+            string result = null;
+            ok.Click += (s, args) => { result = tb.Text?.Trim(); dialog.DialogResult = true; dialog.Close(); };
+            cancel.Click += (s, args) => { dialog.DialogResult = false; dialog.Close(); };
+
+            tb.KeyDown += (s, args) =>
+            {
+                if (args.Key == Key.Enter)
+                {
+                    result = tb.Text?.Trim();
+                    dialog.DialogResult = true;
+                    dialog.Close();
+                }
+                if (args.Key == Key.Escape)
+                {
+                    dialog.DialogResult = false;
+                    dialog.Close();
+                }
+            };
+
+            dialog.ShowDialog();
+            return result;
+        }
+
+        private Dictionary<string, string>? PromptForForm(string title, List<FormField> fields)
+        {
+            var dialog = new Window
+            {
+                Title = title,
+                Width = 420,
+                Height = 280 + Math.Max(0, fields.Count - 4) * 40,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize,
+                Background = this.Resources["WindowBackgroundBrush"] as SolidColorBrush
+            };
+
+            var grid = new Grid { Margin = new Thickness(15) };
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var stack = new StackPanel { Orientation = Orientation.Vertical };
+
+            var inputs = new Dictionary<string, FrameworkElement>();
+
+            foreach (var field in fields)
+            {
+                var panel = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 0, 10) };
+                panel.Children.Add(new TextBlock
+                {
+                    Text = field.Label,
+                    Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                    Margin = new Thickness(0, 0, 0, 4)
+                });
+
+                FrameworkElement input;
+                if (field.Type == "bool")
+                {
+                    var cb = new CheckBox
+                    {
+                        IsChecked = field.DefaultValue == "1" || field.DefaultValue.Equals("true", StringComparison.OrdinalIgnoreCase),
+                        Foreground = this.Resources["TextBrush"] as SolidColorBrush
+                    };
+                    input = cb;
+                }
+                else
+                {
+                    var tb = new TextBox
+                    {
+                        Text = field.DefaultValue,
+                        Height = 28,
+                        Padding = new Thickness(6, 3, 6, 3),
+                        Background = Brushes.White,
+                        Foreground = Brushes.Black
+                    };
+                    input = tb;
+                }
+
+                inputs[field.Key] = input;
+                panel.Children.Add(input);
+                stack.Children.Add(panel);
+            }
+
+            var scroll = new ScrollViewer
+            {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Content = stack
+            };
+            Grid.SetRow(scroll, 0);
+
+            var buttons = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 10, 0, 0)
+            };
+
+            var ok = new Button
+            {
+                Content = "OK",
+                Width = 90,
+                Height = 32,
+                Margin = new Thickness(0, 0, 8, 0),
+                Style = this.Resources["RoundedButtonStyle"] as Style,
+                Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
+                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush
+            };
+            var cancel = new Button
+            {
+                Content = "Отмена",
+                Width = 90,
+                Height = 32,
+                Style = this.Resources["RoundedButtonStyle"] as Style,
+                Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
+                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush
+            };
+
+            buttons.Children.Add(ok);
+            buttons.Children.Add(cancel);
+            Grid.SetRow(buttons, 1);
+
+            grid.Children.Add(scroll);
+            grid.Children.Add(buttons);
+
+            dialog.Content = grid;
+
+            Dictionary<string, string>? result = null;
+
+            ok.Click += (s, e) =>
+            {
+                var values = new Dictionary<string, string>();
+                foreach (var f in fields)
+                {
+                    if (!inputs.ContainsKey(f.Key)) continue;
+                    var ctrl = inputs[f.Key];
+                    string val = "";
+                    if (ctrl is TextBox tb) val = tb.Text.Trim();
+                    if (ctrl is CheckBox cb) val = cb.IsChecked == true ? "1" : "0";
+                    values[f.Key] = val;
+                }
+                result = values;
+                dialog.DialogResult = true;
+                dialog.Close();
+            };
+
+            cancel.Click += (s, e) =>
+            {
+                dialog.DialogResult = false;
+                dialog.Close();
+            };
+
+            dialog.ShowDialog();
+            return result;
+        }
+
         // === ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ===
 
         private void ShowAdminPanel()
@@ -4694,10 +5598,12 @@ namespace LIB
             AdminMainContent.Visibility = Visibility.Visible;
             AdminContentControl.Visibility = Visibility.Collapsed;
             AdminLoadingPanel.Visibility = Visibility.Collapsed;
+            if (AdminActionsPanel != null) AdminActionsPanel.Visibility = Visibility.Collapsed;
         }
 
         private async void ShowAdminContent(string contentType)
         {
+            currentAdminContentType = contentType;
             TextBoxLoading.Text = contentType;
             HideAllPanels();
             AdminPanel.Visibility = Visibility.Visible;
@@ -4711,37 +5617,43 @@ namespace LIB
             {
                 await Task.Delay(1000);
                 AdminLoadingPanel.Visibility = Visibility.Collapsed;
-
+                LoadBooksData();
             }
             if (contentType == "BookFiles")
             {
                 await Task.Delay(1000);
                 AdminLoadingPanel.Visibility = Visibility.Collapsed;
+                LoadBookFilesData();
             }
             if (contentType == "Users")
             {
                 await Task.Delay(1000);
                 AdminLoadingPanel.Visibility = Visibility.Collapsed;
+                LoadUsersData();
             }
             if (contentType == "ReadingStats")
             {
                 await Task.Delay(1000);
                 AdminLoadingPanel.Visibility = Visibility.Collapsed;
+                LoadReadingStatistics();
             }
             if (contentType == "UserBooks")
             {
                 await Task.Delay(1000);
                 AdminLoadingPanel.Visibility = Visibility.Collapsed;
+                LoadUserBooksData();
             }
             if (contentType == "Progress")
             {
                 await Task.Delay(1000);
                 AdminLoadingPanel.Visibility = Visibility.Collapsed;
+                LoadReadingProgressData();
             }
             if (contentType == "Backup")
             {
                 await Task.Delay(1000);
                 AdminLoadingPanel.Visibility = Visibility.Collapsed;
+                LoadBackupData();
             }
         }
 
@@ -4750,6 +5662,20 @@ namespace LIB
             AdminDataGrid.ItemsSource = table?.DefaultView;
             AdminLoadingPanel.Visibility = Visibility.Collapsed;
             AdminContentControl.Visibility = Visibility.Visible;
+            if (AdminActionsPanel != null) AdminActionsPanel.Visibility = Visibility.Visible;
+
+            // Скрываем ID-колонки
+            if (AdminDataGrid != null && AdminDataGrid.Columns.Count > 0)
+            {
+                foreach (var col in AdminDataGrid.Columns)
+                {
+                    string header = col.Header?.ToString() ?? "";
+                    if (header.ToLower().Contains("id"))
+                    {
+                        col.Visibility = Visibility.Collapsed;
+                    }
+                }
+            }
         }
 
         private void ShowAddBookDialog()
@@ -4773,6 +5699,7 @@ namespace LIB
             AdminMainContent.Visibility = Visibility.Collapsed;
             AdminContentControl.Visibility = Visibility.Collapsed; 
 
+            if (AdminActionsPanel != null) AdminActionsPanel.Visibility = Visibility.Collapsed;
         }
 
         
