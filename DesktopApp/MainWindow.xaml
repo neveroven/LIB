@@ -2672,9 +2672,37 @@ Margin="0,0,10,0">
 
                                 <!-- Контент для других разделов будет подгружаться динамически -->
                                 <ContentControl x:Name="AdminContentControl"
-                                Visibility="Visible">
-                                    <DataGrid>
-                                        
+                                Visibility="Collapsed">
+                                    <DataGrid x:Name="AdminDataGrid"
+                                              AutoGenerateColumns="True"
+                                              IsReadOnly="True"
+                                              CanUserAddRows="False"
+                                              CanUserDeleteRows="False"
+                                              CanUserResizeRows="False"
+                                              CanUserSortColumns="True"
+                                              RowHeaderWidth="0"
+                                              RowHeight="32"
+                                              ColumnHeaderHeight="34"
+                                              HeadersVisibility="Column"
+                                              GridLinesVisibility="All"
+                                              Margin="10"
+                                              Background="{DynamicResource ButtonBackgroundBrush}"
+                                              Foreground="{DynamicResource TextBrush}"
+                                              BorderBrush="{DynamicResource ButtonBorderBrush}"
+                                              RowBackground="{DynamicResource ButtonBackgroundBrush}"
+                                              AlternatingRowBackground="LightSkyBlue">
+                                        <DataGrid.Resources>
+                                            <Style TargetType="DataGridColumnHeader">
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                                <Setter Property="Padding" Value="8,6"/>
+                                            </Style>
+                                            <Style TargetType="DataGridCell">
+                                                <Setter Property="Padding" Value="8,4"/>
+                                                <Setter Property="FontSize" Value="14"/>
+                                                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                                            </Style>
+                                        </DataGrid.Resources>
                                     </DataGrid>
                                 </ContentControl>
                             </Grid>

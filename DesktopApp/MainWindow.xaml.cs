@@ -12,6 +12,7 @@ using Microsoft.Win32;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using System.Data;
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
 using MySqlConnector;
@@ -4261,7 +4262,7 @@ namespace LIB
 
         // === МЕТОДЫ ДЛЯ РАБОТЫ С БАЗОЙ ДАННЫХ ===
 
-        private void LoadAdminStatistics()
+        private void LoadAdminStatistics(bool showInGrid = false)
         {
             try
             {
@@ -4272,22 +4273,30 @@ namespace LIB
                     // Загрузка общей статистики
                     string statsQuery = @"
                 SELECT 
-                    (SELECT COUNT(*) FROM books) as total_books,
-                    (SELECT COUNT(*) FROM users) as total_users,
-                    (SELECT COUNT(*) FROM reading_progress) as active_readings,
-                    (SELECT COUNT(*) FROM book_files) as total_files";
+                    (SELECT COUNT(*) FROM books) AS 'Всего книг',
+                    (SELECT COUNT(*) FROM users) AS 'Пользователей',
+                    (SELECT COUNT(*) FROM reading_progress) AS 'Активных чтений',
+                    (SELECT COUNT(*) FROM book_files) AS 'Файлов книг'";
 
                     using (MySqlCommand cmd = new MySqlCommand(statsQuery, connection))
                     {
-                        using (MySqlDataReader reader = cmd.ExecuteReader())
+                        DataTable table = new DataTable();
+                        using (var reader = cmd.ExecuteReader())
                         {
-                            if (reader.Read())
-                            {
-                                AdminTotalBooksText.Text = reader["total_books"].ToString();
-                                AdminTotalUsersText.Text = reader["total_users"].ToString();
-                                AdminActiveReadingsText.Text = reader["active_readings"].ToString();
-                                AdminBookFilesText.Text = reader["total_files"].ToString();
-                            }
+                            table.Load(reader);
+                        }
+
+                        if (table.Rows.Count > 0)
+                        {
+                            DataRow row = table.Rows[0];
+                            AdminTotalBooksText.Text = row["Всего книг"].ToString();
+                            AdminTotalUsersText.Text = row["Пользователей"].ToString();
+                            AdminActiveReadingsText.Text = row["Активных чтений"].ToString();
+                            AdminBookFilesText.Text = row["Файлов книг"].ToString();
+                        }
+                        if (showInGrid)
+                        {
+                            DisplayAdminTable(table);
                         }
                     }
                 }
@@ -4305,12 +4314,24 @@ namespace LIB
                 using (MySqlConnection connection = new MySqlConnection(conectionString))
                 {
                     connection.Open();
-                    string query = "SELECT id, title, author, published_year, language, series FROM books ORDER BY id DESC";
+                    string query = @"
+                SELECT 
+                    title AS 'Название',
+                    author AS 'Автор',
+                    published_year AS 'Год издания',
+                    language AS 'Язык',
+                    series AS 'Серия'
+                FROM books
+                ORDER BY id DESC";
 
                     using (MySqlCommand cmd = new MySqlCommand(query, connection))
                     {
-                        // Здесь можно загрузить данные в DataGrid или ListView
-                        // Например: BooksDataGrid.ItemsSource = cmd.ExecuteReader();
+                        DataTable table = new DataTable();
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            table.Load(reader);
+                        }
+                        DisplayAdminTable(table);
                     }
                 }
             }
@@ -4327,14 +4348,28 @@ namespace LIB
                 using (MySqlConnection connection = new MySqlConnection(conectionString))
                 {
                     connection.Open();
-                    string query = @"SELECT bf.*, b.title as book_title, b.author 
-                           FROM book_files bf 
-                           JOIN books b ON bf.book_id = b.id 
-                           ORDER BY bf.id DESC";
+                    string query = @"
+                SELECT 
+                    b.title AS 'Название книги',
+                    b.author AS 'Автор',
+                    bf.format AS 'Формат',
+                    bf.source_type AS 'Источник',
+                    bf.local_path AS 'Локальный путь',
+                    bf.server_uri AS 'URL',
+                    bf.file_name AS 'Имя файла',
+                    bf.cover_image_uri AS 'Обложка'
+                FROM book_files bf 
+                JOIN books b ON bf.book_id = b.id 
+                ORDER BY bf.id DESC";
 
                     using (MySqlCommand cmd = new MySqlCommand(query, connection))
                     {
-                        // Загрузка файлов книг
+                        DataTable table = new DataTable();
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            table.Load(reader);
+                        }
+                        DisplayAdminTable(table);
                     }
                 }
             }
@@ -4351,11 +4386,21 @@ namespace LIB
                 using (MySqlConnection connection = new MySqlConnection(conectionString))
                 {
                     connection.Open();
-                    string query = "SELECT UID, User_login, Is_admin FROM users ORDER BY UID";
+                    string query = @"
+                SELECT 
+                    User_login AS 'Логин',
+                    Is_admin AS 'Администратор'
+                FROM users
+                ORDER BY User_login";
 
                     using (MySqlCommand cmd = new MySqlCommand(query, connection))
                     {
-                        // Загрузка пользователей
+                        DataTable table = new DataTable();
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            table.Load(reader);
+                        }
+                        DisplayAdminTable(table);
                     }
                 }
             }
@@ -4374,15 +4419,21 @@ namespace LIB
                     connection.Open();
                     string query = @"
                 SELECT 
-                    COUNT(DISTINCT user_id) as active_users,
-                    COUNT(DISTINCT book_id) as active_books,
-                    AVG(progress_percent) as avg_progress,
-                    MAX(last_read_at) as last_activity
-                FROM reading_progress";
+                    COUNT(DISTINCT rp.user_id) AS 'Активных пользователей',
+                    COUNT(DISTINCT bf.book_id) AS 'Активных книг',
+                    AVG(rp.progress_percent) AS 'Средний прогресс',
+                    MAX(rp.last_read_at) AS 'Последняя активность'
+                FROM reading_progress rp
+                LEFT JOIN book_files bf ON rp.book_file_id = bf.id";
 
                     using (MySqlCommand cmd = new MySqlCommand(query, connection))
                     {
-                        // Загрузка статистики чтения
+                        DataTable table = new DataTable();
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            table.Load(reader);
+                        }
+                        DisplayAdminTable(table);
                     }
                 }
             }
@@ -4400,7 +4451,14 @@ namespace LIB
                 {
                     connection.Open();
                     string query = @"
-                SELECT ub.*, u.User_login, b.title, b.author, bf.file_name, bf.format
+                SELECT 
+                    u.User_login AS 'Логин',
+                    b.title AS 'Название книги',
+                    b.author AS 'Автор',
+                    ub.status AS 'Статус',
+                    ub.added_at AS 'Добавлено',
+                    bf.file_name AS 'Имя файла',
+                    bf.format AS 'Формат'
                 FROM user_books ub
                 JOIN users u ON ub.user_id = u.UID
                 JOIN books b ON ub.book_id = b.id
@@ -4409,7 +4467,12 @@ namespace LIB
 
                     using (MySqlCommand cmd = new MySqlCommand(query, connection))
                     {
-                        // Загрузка книг пользователей
+                        DataTable table = new DataTable();
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            table.Load(reader);
+                        }
+                        DisplayAdminTable(table);
                     }
                 }
             }
@@ -4427,7 +4490,16 @@ namespace LIB
                 {
                     connection.Open();
                     string query = @"
-                SELECT rp.*, u.User_login, b.title as book_title, b.author, bf.file_name, bf.format
+                SELECT 
+                    u.User_login AS 'Логин',
+                    b.title AS 'Книга',
+                    b.author AS 'Автор',
+                    bf.file_name AS 'Файл',
+                    bf.format AS 'Формат',
+                    rp.current_page AS 'Текущая страница',
+                    rp.total_pages AS 'Всего страниц',
+                    rp.progress_percent AS 'Прогресс %',
+                    rp.last_read_at AS 'Последнее чтение'
                 FROM reading_progress rp
                 JOIN users u ON rp.user_id = u.UID
                 JOIN book_files bf ON rp.book_file_id = bf.id
@@ -4436,7 +4508,12 @@ namespace LIB
 
                     using (MySqlCommand cmd = new MySqlCommand(query, connection))
                     {
-                        // Загрузка прогресса чтения
+                        DataTable table = new DataTable();
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            table.Load(reader);
+                        }
+                        DisplayAdminTable(table);
                     }
                 }
             }
@@ -4453,11 +4530,20 @@ namespace LIB
                 using (MySqlConnection connection = new MySqlConnection(conectionString))
                 {
                     connection.Open();
-                    string query = "SELECT setting_key, setting_value FROM settings";
+                    string query = @"
+                SELECT 
+                    setting_key AS 'Ключ',
+                    setting_value AS 'Значение'
+                FROM settings";
 
                     using (MySqlCommand cmd = new MySqlCommand(query, connection))
                     {
-                        // Загрузка настроек
+                        DataTable table = new DataTable();
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            table.Load(reader);
+                        }
+                        DisplayAdminTable(table);
                     }
                 }
             }
@@ -4469,13 +4555,124 @@ namespace LIB
 
         private void LoadBackupData()
         {
-            // Загрузка информации о backup'ах
-            // Можно показать список существующих backup'ов
+            try
+            {
+                string backupDir = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "backup");
+                if (!Directory.Exists(backupDir))
+                {
+                    Directory.CreateDirectory(backupDir);
+                }
+
+                DataTable table = new DataTable();
+                table.Columns.Add("Имя файла");
+                table.Columns.Add("Размер (KB)");
+                table.Columns.Add("Дата создания");
+                table.Columns.Add("Путь");
+
+                var files = Directory.GetFiles(backupDir, "*.sql")
+                    .Select(f => new FileInfo(f))
+                    .OrderByDescending(f => f.CreationTime)
+                    .ToList();
+
+                foreach (var file in files)
+                {
+                    var row = table.NewRow();
+                    row["Имя файла"] = file.Name;
+                    row["Размер (KB)"] = (file.Length / 1024.0).ToString("F2");
+                    row["Дата создания"] = file.CreationTime.ToString("dd.MM.yyyy HH:mm:ss");
+                    row["Путь"] = file.FullName;
+                    table.Rows.Add(row);
+                }
+
+                DisplayAdminTable(table);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки списка резервных копий: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void CreateBackup()
         {
-           
+            try
+            {
+                string backupDir = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "backup");
+                if (!Directory.Exists(backupDir))
+                {
+                    Directory.CreateDirectory(backupDir);
+                }
+
+                string backupFile = System.IO.Path.Combine(backupDir, $"backup_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.sql");
+
+                using (MySqlConnection connection = new MySqlConnection(conectionString))
+                {
+                    connection.Open();
+
+                    // Получаем список таблиц
+                    List<string> tables = new List<string>();
+                    using (MySqlCommand cmd = new MySqlCommand("SHOW TABLES", connection))
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            tables.Add(reader.GetString(0));
+                        }
+                    }
+
+                    StringBuilder output = new StringBuilder();
+
+                    foreach (var table in tables)
+                    {
+                        // Структура таблицы
+                        using (MySqlCommand createCmd = new MySqlCommand($"SHOW CREATE TABLE `{table}`", connection))
+                        using (var reader = createCmd.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                output.AppendLine();
+                                output.AppendLine(reader.GetString(1) + ";");
+                                output.AppendLine();
+                            }
+                        }
+
+                        // Данные
+                        using (MySqlCommand dataCmd = new MySqlCommand($"SELECT * FROM `{table}`", connection))
+                        using (var dataReader = dataCmd.ExecuteReader())
+                        {
+                            while (dataReader.Read())
+                            {
+                                StringBuilder insert = new StringBuilder();
+                                insert.Append($"INSERT INTO `{table}` VALUES(");
+                                for (int i = 0; i < dataReader.FieldCount; i++)
+                                {
+                                    if (i > 0) insert.Append(", ");
+                                    if (dataReader.IsDBNull(i))
+                                    {
+                                        insert.Append("NULL");
+                                    }
+                                    else
+                                    {
+                                        string val = dataReader.GetValue(i).ToString();
+                                        val = val.Replace("\\", "\\\\").Replace("'", "\\'");
+                                        insert.Append($"'{val}'");
+                                    }
+                                }
+                                insert.Append(");");
+                                output.AppendLine(insert.ToString());
+                            }
+                        }
+                    }
+
+                    File.WriteAllText(backupFile, output.ToString(), Encoding.UTF8);
+                }
+
+                MessageBox.Show($"Резервная копия создана: {backupFile}", "Готово", MessageBoxButton.OK, MessageBoxImage.Information);
+                LoadBackupData();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при создании резервной копии: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         // === ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ===
@@ -4486,7 +4683,7 @@ namespace LIB
             AdminPanel.Visibility = Visibility.Visible;
             AdminLoadingPanel.Visibility = Visibility.Visible;
             AdminMainContent.Visibility = Visibility.Visible;
-            AdminContentControl.Visibility = Visibility.Visible;
+            AdminContentControl.Visibility = Visibility.Collapsed;
             ShowAdminMainContent();
         }
 
@@ -4495,6 +4692,8 @@ namespace LIB
             HideAllPanels();
             AdminPanel.Visibility = Visibility.Visible;
             AdminMainContent.Visibility = Visibility.Visible;
+            AdminContentControl.Visibility = Visibility.Collapsed;
+            AdminLoadingPanel.Visibility = Visibility.Collapsed;
         }
 
         private async void ShowAdminContent(string contentType)
@@ -4503,7 +4702,8 @@ namespace LIB
             HideAllPanels();
             AdminPanel.Visibility = Visibility.Visible;
             AdminLoadingPanel.Visibility = Visibility.Visible;
-            AdminContentControl.Visibility = Visibility.Visible;
+            AdminContentControl.Visibility = Visibility.Collapsed;
+            AdminDataGrid.ItemsSource = null;
 
             // Здесь можно динамически загружать соответствующий контент
             // в зависимости от contentType
@@ -4543,6 +4743,13 @@ namespace LIB
                 await Task.Delay(1000);
                 AdminLoadingPanel.Visibility = Visibility.Collapsed;
             }
+        }
+
+        private void DisplayAdminTable(DataTable table)
+        {
+            AdminDataGrid.ItemsSource = table?.DefaultView;
+            AdminLoadingPanel.Visibility = Visibility.Collapsed;
+            AdminContentControl.Visibility = Visibility.Visible;
         }
 
         private void ShowAddBookDialog()
