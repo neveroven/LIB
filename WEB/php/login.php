@@ -6,17 +6,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $login = trim($_POST['login'] ?? '');
     $password = trim($_POST['password'] ?? '');
     
-    $stmt = mysqli_prepare($connect, "SELECT UID, User_login, Is_admin FROM users WHERE User_login = ? AND User_password = ? AND Is_admin = 1");
-    mysqli_stmt_bind_param($stmt, 'ss', $login, $password);
+    // Получаем хеш пароля из БД
+    $stmt = mysqli_prepare($connect, "SELECT UID, User_login, User_password, Is_admin FROM users WHERE User_login = ? AND Is_admin = 1");
+    mysqli_stmt_bind_param($stmt, 's', $login);
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
     
     if ($user = mysqli_fetch_assoc($result)) {
-        $_SESSION['user_id'] = $user['UID'];
-        $_SESSION['username'] = $user['User_login'];
-        $_SESSION['is_admin'] = true;
-        header('Location: index_admin.php');
-        exit();
+        // Проверяем пароль с помощью password_verify
+        if (password_verify($password, $user['User_password'])) {
+            $_SESSION['user_id'] = $user['UID'];
+            $_SESSION['username'] = $user['User_login'];
+            $_SESSION['is_admin'] = true;
+            header('Location: index_admin.php');
+            exit();
+        } else {
+            $error = "Неверные учетные данные или недостаточно прав";
+        }
     } else {
         $error = "Неверные учетные данные или недостаточно прав";
     }

@@ -20,7 +20,7 @@ function executeQuery($connect, $sql) {
 // Обработка добавления пользователя
 if (isset($_POST['action']) && $_POST['action'] == 'add_user') {
     $login = mysqli_real_escape_string($connect, $_POST['login']);
-    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+    $password = password_hash($_POST['password'], PASSWORD_BCRYPT);
     $is_admin = isset($_POST['is_admin']) ? 1 : 0;
     
     $sql = "INSERT INTO users (User_login, User_password, Is_admin) VALUES ('$login', '$password', $is_admin)";
@@ -58,7 +58,7 @@ if (isset($_POST['action']) && $_POST['action'] == 'edit_user') {
 // Обработка смены пароля
 if (isset($_POST['action']) && $_POST['action'] == 'change_password') {
     $user_id = intval($_POST['user_id']);
-    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
+    $password = password_hash($_POST['password'], PASSWORD_BCRYPT);
     
     // Проверяем, не пытаемся ли изменить пароль другого админа
     $current_user = mysqli_fetch_assoc(executeQuery($connect, "SELECT Is_admin FROM users WHERE UID = $user_id"));

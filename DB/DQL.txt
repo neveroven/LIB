@@ -4,7 +4,7 @@ use Paradise;
 CREATE TABLE users (
   UID INTEGER PRIMARY KEY auto_increment,
   User_login text,
-  User_password integer,
+  User_password TEXT,  -- Изменено на TEXT для хранения хешей паролей
   Is_admin bool
 );
 

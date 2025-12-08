@@ -16,6 +16,7 @@ using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
 using MySqlConnector;
 using Microsoft.Extensions.Configuration;
+using BCrypt.Net;
 
 namespace LIB
 {
@@ -3528,13 +3529,12 @@ namespace LIB
             {
                 conn.Open();
 
-                // Подготовленная команда для защиты от SQL инъекций
+                // Получаем хеш пароля из БД
                 using (var command = new MySqlCommand(
-                    "SELECT UID, Is_admin FROM users WHERE User_login = @login AND User_password = @password",
+                    "SELECT UID, User_password, Is_admin FROM users WHERE User_login = @login",
                     conn))
                 {
                     command.Parameters.AddWithValue("@login", login);
-                    command.Parameters.AddWithValue("@password", password);
 
                     // Выполнение команды и получение результата
                     using (var reader = command.ExecuteReader())
@@ -3542,9 +3542,15 @@ namespace LIB
                         if (reader.Read())
                         {
                             int userId = reader.GetInt32(0);
-                            isAdmin = !reader.IsDBNull(1) && reader.GetBoolean(1);
-                            conn.Close();
-                            return userId;
+                            string passwordHash = reader.IsDBNull(1) ? "" : reader.GetString(1);
+                            isAdmin = !reader.IsDBNull(2) && reader.GetBoolean(2);
+                            
+                            // Проверяем пароль с помощью BCrypt
+                            if (!string.IsNullOrEmpty(passwordHash) && BCrypt.Net.BCrypt.Verify(password, passwordHash))
+                            {
+                                conn.Close();
+                                return userId;
+                            }
                         }
                     }
                     conn.Close();
@@ -3596,10 +3602,13 @@ namespace LIB
             {
                 conn.Open();
 
+                // Хешируем пароль с помощью BCrypt (автоматически генерирует соль)
+                string passwordHash = BCrypt.Net.BCrypt.HashPassword(password);
+
                 using (var command = new MySqlCommand("INSERT INTO users (User_login, User_password, Is_admin) VALUES (@login, @password, false)", conn))
                 {
                     command.Parameters.AddWithValue("@login", login);
-                    command.Parameters.AddWithValue("@password", password);
+                    command.Parameters.AddWithValue("@password", passwordHash);
                     command.ExecuteNonQuery();
                         return (int)command.LastInsertedId;
                     }

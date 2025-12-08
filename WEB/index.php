@@ -33,27 +33,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login_submit'])) {
         if (!isset($connect) || !$connect) {
             $error = "Ошибка подключения к базе данных";
         } else {
-            $stmt = mysqli_prepare($connect, "SELECT UID, User_login, Is_admin FROM users WHERE User_login = ? AND User_password = ?");
+            // Получаем хеш пароля из БД
+            $stmt = mysqli_prepare($connect, "SELECT UID, User_login, User_password, Is_admin FROM users WHERE User_login = ?");
             if (!$stmt) {
                 $error = "Ошибка подготовки запроса: " . mysqli_error($connect);
             } else {
-                mysqli_stmt_bind_param($stmt, 'ss', $login, $password);
+                mysqli_stmt_bind_param($stmt, 's', $login);
                 mysqli_stmt_execute($stmt);
                 $result = mysqli_stmt_get_result($stmt);
                 
                 if ($user = mysqli_fetch_assoc($result)) {
-                    // Сохраняем данные в сессию
-                    $_SESSION['user_id'] = $user['UID'];
-                    $_SESSION['username'] = $user['User_login'];
-                    $_SESSION['is_admin'] = (bool)$user['Is_admin'];
-                    
-                    // Перенаправляем в зависимости от роли
-                    if ($_SESSION['is_admin']) {
-                        header('Location: php/index_admin.php');
+                    // Проверяем пароль с помощью password_verify
+                    if (password_verify($password, $user['User_password'])) {
+                        // Сохраняем данные в сессию
+                        $_SESSION['user_id'] = $user['UID'];
+                        $_SESSION['username'] = $user['User_login'];
+                        $_SESSION['is_admin'] = (bool)$user['Is_admin'];
+                        
+                        // Перенаправляем в зависимости от роли
+                        if ($_SESSION['is_admin']) {
+                            header('Location: php/index_admin.php');
+                        } else {
+                            header('Location: php/user_dashboard.php');
+                        }
+                        exit();
                     } else {
-                        header('Location: php/user_dashboard.php');
+                        $error = "Неверный логин или пароль";
                     }
-                    exit();
                 } else {
                     $error = "Неверный логин или пароль";
                 }
@@ -85,9 +91,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_submit'])) {
         if (mysqli_fetch_assoc($result)) {
             $error = "Пользователь с таким логином уже существует";
         } else {
+            // Хешируем пароль перед сохранением (используем BCrypt для совместимости с C# приложением)
+            $passwordHash = password_hash($password, PASSWORD_BCRYPT);
+            
             // Создаем нового пользователя
             $stmt = mysqli_prepare($connect, "INSERT INTO users (User_login, User_password, Is_admin) VALUES (?, ?, 0)");
-            mysqli_stmt_bind_param($stmt, 'ss', $login, $password);
+            mysqli_stmt_bind_param($stmt, 'ss', $login, $passwordHash);
             
             if (mysqli_stmt_execute($stmt)) {
                 $success = "Регистрация успешна! Теперь вы можете войти в систему.";
