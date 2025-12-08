@@ -28,7 +28,7 @@ $stats = [
 $stats_query = "
     SELECT 
         COUNT(DISTINCT user_id) as active_users,
-        COUNT(DISTINCT book_id) as active_books,
+        COUNT(DISTINCT book_file_id) as active_books,
         AVG(progress_percent) as avg_progress,
         MAX(last_read_at) as last_activity
     FROM reading_progress
