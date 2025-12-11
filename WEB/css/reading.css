@@ -1,0 +1,55 @@
+.reader-panel {
+    position: relative;
+}
+
+.reader-progress {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--button-bg);
+    padding: 10px;
+    border: 1px solid var(--button-border);
+    border-radius: var(--border-radius);
+    margin-bottom: 12px;
+}
+
+.reader-progress__bar {
+    height: 6px;
+    background: var(--accent-color);
+    border-radius: 4px;
+    width: 0;
+    transition: width 0.2s ease;
+}
+
+.reader-progress__meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    margin-top: 6px;
+}
+
+.reader-error {
+    padding: 16px;
+    border: 1px solid #f5c2c7;
+    background: #f8d7da;
+    color: #842029;
+    border-radius: var(--border-radius);
+}
+
+.book-content {
+    max-height: calc(100vh - 220px);
+    overflow-y: auto;
+    white-space: pre-wrap;
+    line-height: 1.6;
+    font-size: 16px;
+    background: rgba(0,0,0,0.02);
+    border-radius: var(--border-radius);
+    padding: 16px;
+    border: 1px solid var(--button-border);
+}
+
+body.dark-theme .book-content {
+    background: rgba(255,255,255,0.04);
+}
+

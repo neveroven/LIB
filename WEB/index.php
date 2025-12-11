@@ -91,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['register_submit'])) {
         if (mysqli_fetch_assoc($result)) {
             $error = "Пользователь с таким логином уже существует";
         } else {
-            // Хешируем пароль перед сохранением (используем BCrypt для совместимости с C# приложением)
+            // Хешируем пароль перед сохранением 
             $passwordHash = password_hash($password, PASSWORD_BCRYPT);
             
             // Создаем нового пользователя

@@ -112,7 +112,8 @@ const BooksManager = {
     
     openBook(bookId) {
         // Navigate to reading page
-        window.location.href = `php/reading.php?id=${bookId}`;
+        // relative to current php location (user_dashboard/catalog)
+        window.location.href = `reading.php?id=${bookId}`;
     },
     
     handleAction(action, bookId) {

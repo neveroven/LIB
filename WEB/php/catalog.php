@@ -11,9 +11,22 @@ $user_id = $_SESSION['user_id'];
 
 // Получаем все книги, которые еще не добавлены пользователю
 $available_books = [];
-$query = "SELECT b.* FROM books b 
-          WHERE b.id NOT IN (SELECT book_id FROM user_books WHERE user_id = ?)
-          ORDER BY b.title";
+$query = "
+    SELECT 
+        b.*,
+        (
+            SELECT cover_image_uri 
+            FROM book_files bf 
+            WHERE bf.book_id = b.id 
+              AND bf.cover_image_uri IS NOT NULL 
+              AND bf.cover_image_uri <> ''
+            ORDER BY bf.id ASC 
+            LIMIT 1
+        ) AS cover_image_uri
+    FROM books b 
+    WHERE b.id NOT IN (SELECT book_id FROM user_books WHERE user_id = ?)
+    ORDER BY b.title
+";
 $stmt = mysqli_prepare($connect, $query);
 mysqli_stmt_bind_param($stmt, 'i', $user_id);
 mysqli_stmt_execute($stmt);
@@ -21,6 +34,38 @@ $result = mysqli_stmt_get_result($stmt);
 
 while ($row = mysqli_fetch_assoc($result)) {
     $available_books[] = $row;
+}
+
+// Получаем путь к папке DB из настроек
+$db_folder_path = '';
+$settings_res = mysqli_query($connect, "SELECT setting_value FROM settings WHERE setting_key = 'db_folder_path' LIMIT 1");
+if ($settings_res && $srow = mysqli_fetch_assoc($settings_res)) {
+    $db_folder_path = trim($srow['setting_value'] ?? '');
+}
+
+function build_cover_url($cover_uri, $db_folder_path) {
+    if (empty($cover_uri)) return '';
+    $coverUriNormalized = ltrim(str_replace('\\', '/', $cover_uri), '/');
+    $dbBase = rtrim(str_replace('\\', '/', $db_folder_path), '/');
+
+    // Абсолютный путь к файлу
+    $abs = $cover_uri;
+    if ($dbBase !== '') {
+        $abs = $dbBase . '/' . $coverUriNormalized;
+    }
+    // если указали абсолютный путь в БД
+    if (file_exists($cover_uri)) {
+        $abs = $cover_uri;
+    }
+
+    // Проверяем существование
+    if (!file_exists($abs)) {
+        return '';
+    }
+
+    // Кодируем путь для прокси показа
+    $token = urlencode(base64_encode($abs));
+    return "cover_image.php?p={$token}";
 }
 
 // Обработка добавления книги в библиотеку
@@ -91,9 +136,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_to_library'])) {
                 <?php if (!empty($available_books)): ?>
                     <div class="books-grid">
                         <?php foreach ($available_books as $book): ?>
+                        <?php $coverUrl = build_cover_url($book['cover_image_uri'] ?? '', $db_folder_path); ?>
                         <div class="book-card">
-                            <div class="book-cover" style="display: flex; align-items: center; justify-content: center; color: rgba(0,0,0,0.3); font-size: 48px;">
-                                📖
+                            <div class="book-cover" style="display: flex; align-items: center; justify-content: center; color: rgba(0,0,0,0.3); font-size: 48px; overflow:hidden;">
+                                <?php if ($coverUrl): ?>
+                                    <img src="<?= htmlspecialchars($coverUrl) ?>" alt="Обложка" style="width:100%; height:100%; object-fit:cover;">
+                                <?php else: ?>
+                                    📖
+                                <?php endif; ?>
                             </div>
                             <div class="book-info">
                                 <div class="book-card-title"><?= htmlspecialchars($book['title']) ?></div>
