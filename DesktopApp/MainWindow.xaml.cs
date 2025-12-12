@@ -4474,7 +4474,6 @@ namespace LIB
                     connection.Open();
                     string query = @"
                 SELECT 
-                    ub.id AS 'ID',
                     u.User_login AS 'Логин',
                     ub.user_id AS 'ID пользователя',
                     b.title AS 'Название книги',
