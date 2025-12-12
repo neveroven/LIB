@@ -375,3 +375,4 @@ LIB.pdb
 ./Loader/bin/Debug/net9.0-windows/Loader.pdb
 ./Loader/bin/Debug/net9.0-windows/Loader.exe
 ./Loader/bin/Debug/net9.0-windows/Loader.dll
+/Loader/bin
