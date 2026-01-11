@@ -2400,16 +2400,6 @@ Margin="0,0,10,0">
                             FontSize="13"
                             Style="{StaticResource RoundedButtonStyle}"
                             Click="AdminUsersButton_Click"/>
-
-                                    <!-- Статистика и отчеты -->
-                                    <TextBlock Text="Статистика и отчеты"
-                               FontSize="11"
-                               FontWeight="Bold"
-                               Foreground="{DynamicResource TextBrush}"
-                               Opacity="0.7"
-                               Margin="0,15,0,5"
-                               />
-
                                     <Button x:Name="AdminReadingStatsButton"
                             Content="📊 Статистика чтения"
                             Height="40"
@@ -2442,6 +2432,16 @@ Margin="0,0,10,0">
                             FontSize="13"
                             Style="{StaticResource RoundedButtonStyle}"
                             Click="AdminProgressButton_Click"/>
+                                    <!-- Статистика и отчеты -->
+                                    <TextBlock Text="Статистика и отчеты"
+                               FontSize="11"
+                               FontWeight="Bold"
+                               Foreground="{DynamicResource TextBrush}"
+                               Opacity="0.7"
+                               Margin="0,15,0,5"
+                               />
+
+                                    
 
                                     <!-- Система -->
                                     <TextBlock Text="Система"
