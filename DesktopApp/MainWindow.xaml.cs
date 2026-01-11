@@ -166,7 +166,7 @@ namespace LIB
         private int currentUserId = 0; // ID текущего пользователя (0 = неавторизован/гость)
         private bool isAdmin = false; // Флаг администратора
         private string currentXmlContent = "";
-        private string dbFolderPath = ""; // Путь к папке DB для серверных книг
+        private string dbFolderPath = ".."; // Путь к папке DB для серверных книг
         private string currentAdminContentType = "";
         private class FormField
         {
