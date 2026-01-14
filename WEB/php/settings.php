@@ -2,37 +2,38 @@
 session_start();
 require_once 'db.php';
 
-if (empty($_SESSION['is_admin']) || !$_SESSION['is_admin']) {
-    header('Location: login.php');
-    exit();
-}
+// Определяем режим: admin или user
+$is_admin = !empty($_SESSION['is_admin']) && $_SESSION['is_admin'];
 
 $error = '';
 $success = '';
 
-// Сохранение настроек
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_settings'])) {
+// --- ОБЩИЕ СИСТЕМНЫЕ НАСТРОЙКИ (для админа) ---
+if ($is_admin && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_settings'])) {
     $settings = [
         'site_name' => trim($_POST['site_name'] ?? ''),
         'admin_email' => trim($_POST['admin_email'] ?? ''),
         'books_per_page' => (int)($_POST['books_per_page'] ?? 20),
         'allow_registration' => isset($_POST['allow_registration']) ? 1 : 0,
-        'guest_access' => isset($_POST['guest_access']) ? 1 : 0
+        'guest_access' => isset($_POST['guest_access']) ? 1 : 0,
+        // новый параметр: путь к папке DB
+        'db_folder_path' => trim($_POST['db_folder_path'] ?? '')
     ];
     
     foreach ($settings as $key => $value) {
+        $value_str = (string)$value;
         $stmt = mysqli_prepare($connect, 
             "INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) 
              ON DUPLICATE KEY UPDATE setting_value = ?");
-        mysqli_stmt_bind_param($stmt, 'sss', $key, $value, $value);
+        mysqli_stmt_bind_param($stmt, 'sss', $key, $value_str, $value_str);
         mysqli_stmt_execute($stmt);
         mysqli_stmt_close($stmt);
     }
     
-    $success = 'Настройки успешно сохранены';
+    $success = 'Системные настройки успешно сохранены';
 }
 
-// Получение текущих настроек
+// Получение текущих системных настроек
 $current_settings = [];
 $result = mysqli_query($connect, "SELECT setting_key, setting_value FROM settings");
 while ($row = mysqli_fetch_assoc($result)) {
@@ -45,8 +46,39 @@ $settings = array_merge([
     'admin_email' => 'admin@example.com',
     'books_per_page' => 20,
     'allow_registration' => 1,
-    'guest_access' => 1
+    'guest_access' => 1,
+    'db_folder_path' => ''
 ], $current_settings);
+
+// --- ПОЛЬЗОВАТЕЛЬСКИЕ НАСТРОЙКИ (для обычных пользователей) ---
+$user_id = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 0;
+$user_prefs = [
+    'theme' => 'light',
+    'font_size' => 'medium'
+];
+
+if ($user_id > 0) {
+    // читаем из session (просто и без отдельной таблицы) или используем дефолты
+    if (!empty($_SESSION['user_theme'])) {
+        $user_prefs['theme'] = $_SESSION['user_theme'];
+    }
+    if (!empty($_SESSION['user_font_size'])) {
+        $user_prefs['font_size'] = $_SESSION['user_font_size'];
+    }
+
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_user_settings']) && !$is_admin) {
+        $theme = $_POST['theme'] === 'dark' ? 'dark' : 'light';
+        $font_size = in_array($_POST['font_size'], ['small', 'medium', 'large']) ? $_POST['font_size'] : 'medium';
+
+        $_SESSION['user_theme'] = $theme;
+        $_SESSION['user_font_size'] = $font_size;
+
+        $user_prefs['theme'] = $theme;
+        $user_prefs['font_size'] = $font_size;
+
+        $success = 'Ваши настройки сохранены (для этого браузера и сессии)';
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -54,11 +86,17 @@ $settings = array_merge([
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Настройки системы - Paradise Library Admin</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <title><?= $is_admin ? 'Настройки системы - Paradise Library Admin' : 'Настройки - Paradise Library' ?></title>
+    <?php if ($is_admin): ?>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <?php else: ?>
+        <link rel="stylesheet" href="../css/main.css">
+        <link rel="stylesheet" href="../css/user_dashboard.css">
+    <?php endif; ?>
 </head>
 <body>
+<?php if ($is_admin): ?>
     <div class="container-fluid py-3">
         <h2><i class="bi bi-gear"></i> Настройки системы</h2>
 
@@ -150,6 +188,26 @@ $settings = array_merge([
                             </div>
                         </div>
                     </div>
+
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0"><i class="bi bi-folder"></i> Путь к папке DB</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-2">
+                                <label class="form-label">Базовый путь к папке DB на сервере</label>
+                                <input type="text"
+                                       class="form-control"
+                                       name="db_folder_path"
+                                       value="<?= htmlspecialchars($settings['db_folder_path']) ?>"
+                                       placeholder="Например: C:\Users\ПК-1\Documents\GitHub\LIB\DB">
+                            </div>
+                            <small class="text-muted">
+                                Этот путь используется для поиска файлов книг и обложек.
+                                В базе указываются относительные пути внутри этой папки.
+                            </small>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -171,5 +229,76 @@ $settings = array_merge([
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/js/bootstrap.bundle.min.js"></script>
+<?php else: ?>
+    <!-- Пользовательские настройки -->
+    <div class="app-container">
+        <div class="left-panel">
+            <div class="library-title" onclick="window.location.href='user_dashboard.php'">📚 Paradise</div>
+            <div class="nav-buttons">
+                <button class="nav-button" data-href="user_dashboard.php">📖 Книги</button>
+                <button class="nav-button" data-href="catalog.php">📚 Каталог книг</button>
+            </div>
+            <div class="settings-buttons">
+                <button class="nav-button active" data-href="settings.php">⚙️ Настройки</button>
+                <button class="nav-button" onclick="window.location.href='logout.php'">🚪 Выход</button>
+            </div>
+        </div>
+        <div class="right-panel">
+            <div class="top-bar">
+                <button class="back-button" onclick="window.location.href='user_dashboard.php'">← Вернуться к библиотеке</button>
+                <button class="exit-button" onclick="window.location.href='logout.php'">Выход</button>
+            </div>
+            <div class="main-content">
+                <div class="panel">
+                    <h1 class="panel-title" style="font-size: 22px;">⚙️ Личные настройки</h1>
+                    <p class="panel-subtitle">Эти настройки применяются в этом браузере и сохраняются в рамках сессии.</p>
+                    <?php if ($success): ?>
+                        <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
+                    <?php endif; ?>
+                    <form method="POST">
+                        <div class="form-group">
+                            <label class="form-label">Тема оформления</label>
+                            <select name="theme" class="form-control">
+                                <option value="light" <?= $user_prefs['theme'] === 'light' ? 'selected' : '' ?>>Светлая</option>
+                                <option value="dark" <?= $user_prefs['theme'] === 'dark' ? 'selected' : '' ?>>Тёмная</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Размер интерфейса</label>
+                            <select name="font_size" class="form-control">
+                                <option value="small" <?= $user_prefs['font_size'] === 'small' ? 'selected' : '' ?>>Мелкий</option>
+                                <option value="medium" <?= $user_prefs['font_size'] === 'medium' ? 'selected' : '' ?>>Обычный</option>
+                                <option value="large" <?= $user_prefs['font_size'] === 'large' ? 'selected' : '' ?>>Крупный</option>
+                            </select>
+                        </div>
+                        <button type="submit" name="save_user_settings" class="btn btn-primary" style="margin-top: 15px;">
+                            Сохранить настройки
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="../js/main.js"></script>
+    <script>
+        // Синхронизуем только что сохранённые настройки с фронтендом
+        (function() {
+            const phpTheme = '<?= $user_prefs['theme'] === 'dark' ? 'dark' : 'light' ?>';
+            const phpFont = '<?= in_array($user_prefs['font_size'], ['small','medium','large']) ? $user_prefs['font_size'] : 'medium' ?>';
+
+            localStorage.setItem('theme', phpTheme);
+            if (phpTheme === 'dark') {
+                document.body.classList.add("dark-theme");
+            } else {
+                document.body.classList.remove("dark-theme");
+            }
+
+            let fontSize = "16px";
+            if (phpFont === "small") fontSize = "14px";
+            if (phpFont === "large") fontSize = "18px";
+            document.body.style.fontSize = fontSize;
+        })();
+    </script>
+<?php endif; ?>
 </body>
 </html>

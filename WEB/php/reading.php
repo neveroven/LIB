@@ -265,6 +265,25 @@ if (!empty($book['file_id'])) {
     </script>
     <script src="../js/main.js"></script>
     <script src="../js/reading.js"></script>
+    <script>
+        // Синхронизация пользовательских настроек (тема/шрифт) из PHP-сессии
+        (function() {
+            const phpTheme = '<?= !empty($_SESSION["user_theme"]) && $_SESSION["user_theme"] === "dark" ? "dark" : "light" ?>';
+            const phpFont = '<?= !empty($_SESSION["user_font_size"]) ? $_SESSION["user_font_size"] : "medium" ?>';
+
+            localStorage.setItem('theme', phpTheme);
+            if (phpTheme === 'dark') {
+                document.body.classList.add("dark-theme");
+            } else {
+                document.body.classList.remove("dark-theme");
+            }
+
+            let fontSize = "16px";
+            if (phpFont === "small") fontSize = "14px";
+            if (phpFont === "large") fontSize = "18px";
+            document.body.style.fontSize = fontSize;
+        })();
+    </script>
 </body>
 </html>
 

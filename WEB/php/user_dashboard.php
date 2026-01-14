@@ -26,6 +26,8 @@ $result = mysqli_stmt_get_result($stmt);
 while ($row = mysqli_fetch_assoc($result)) {
     $user_books[] = $row;
 }
+
+// Все книги пользователя будем использовать для панели управления статусами
 ?>
 
 <!DOCTYPE html>
@@ -127,13 +129,61 @@ while ($row = mysqli_fetch_assoc($result)) {
                     </div>
                 </div>
                 
-                <!-- Quick Actions -->
+                <!-- Управление статусами книг: отдельная панель -->
                 <div class="panel">
-                    <h2 class="panel-title" style="font-size: 18px; margin-bottom: 15px;">⚡ Быстрые действия</h2>
-                    <div class="quick-actions">
-                        <a href="catalog.php" class="btn quick-action-btn">➕ Добавить книгу</a>
-                        <button class="btn quick-action-btn" onclick="alert('Функция в разработке')">📋 Отчёт</button>
-                    </div>
+                    <h2 class="panel-title" style="font-size: 18px; margin-bottom: 15px;">📌 Управление статусом книг</h2>
+                    <?php if (!empty($user_books)): ?>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Книга</th>
+                                        <th>Автор</th>
+                                        <th>Добавлена</th>
+                                        <th>Статус</th>
+                                        <th>Изменить статус</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                <?php foreach ($user_books as $book): ?>
+                                    <tr>
+                                        <td><?= htmlspecialchars($book['title']) ?></td>
+                                        <td><?= htmlspecialchars($book['author'] ?? 'Не указан') ?></td>
+                                        <td style="font-size: 12px; opacity: 0.7;"><?= date('d.m.Y H:i', strtotime($book['added_at'])) ?></td>
+                                        <td>
+                                            <?php
+                                            $label = $book['status'] === 'reading' ? 'Читаю' :
+                                                     ($book['status'] === 'finished' ? 'Прочитано' :
+                                                     ($book['status'] === 'paused' ? 'Пауза' :
+                                                     ($book['status'] === 'dropped' ? 'Брошена' : 'Запланировано')));
+                                            $color = $book['status'] === 'reading' ? 'primary' :
+                                                     ($book['status'] === 'finished' ? 'success' :
+                                                     ($book['status'] === 'paused' ? 'warning' :
+                                                     ($book['status'] === 'dropped' ? 'danger' : 'secondary')));
+                                            ?>
+                                            <span class="badge badge-<?= $color ?>"><?= $label ?></span>
+                                        </td>
+                                        <td>
+                                            <form method="POST" action="user_update_book_status.php" style="display: flex; gap: 5px; align-items: center;">
+                                                <input type="hidden" name="book_id" value="<?= $book['id'] ?>">
+                                                <select name="status" class="form-control" style="height: 32px; font-size: 12px;">
+                                                    <option value="planned"   <?= $book['status'] === 'planned'   ? 'selected' : '' ?>>Запланировано</option>
+                                                    <option value="reading"   <?= $book['status'] === 'reading'   ? 'selected' : '' ?>>Читаю</option>
+                                                    <option value="finished"  <?= $book['status'] === 'finished'  ? 'selected' : '' ?>>Прочитано</option>
+                                                    <option value="paused"    <?= $book['status'] === 'paused'    ? 'selected' : '' ?>>Пауза</option>
+                                                    <option value="dropped"   <?= $book['status'] === 'dropped'   ? 'selected' : '' ?>>Брошена</option>
+                                                </select>
+                                                <button type="submit" class="btn" style="height: 32px; font-size: 12px;">OK</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php else: ?>
+                        <p style="opacity: 0.6; margin: 10px 0;">Книг пока нет. Добавьте книги в каталоге.</p>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -141,5 +191,26 @@ while ($row = mysqli_fetch_assoc($result)) {
     
     <script src="../js/main.js"></script>
     <script src="../js/user_dashboard.js"></script>
+    <script>
+        // Синхронизация пользовательских настроек (тема/шрифт) из PHP-сессии
+        (function() {
+            const phpTheme = '<?= !empty($_SESSION["user_theme"]) && $_SESSION["user_theme"] === "dark" ? "dark" : "light" ?>';
+            const phpFont = '<?= !empty($_SESSION["user_font_size"]) ? $_SESSION["user_font_size"] : "medium" ?>';
+
+            // Тема
+            localStorage.setItem('theme', phpTheme);
+            if (phpTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+            } else {
+                document.body.classList.remove('dark-theme');
+            }
+
+            // Размер шрифта (через inline‑стиль, без правок CSS)
+            let fontSize = '16px';
+            if (phpFont === 'small') fontSize = '14px';
+            if (phpFont === 'large') fontSize = '18px';
+            document.body.style.fontSize = fontSize;
+        })();
+    </script>
 </body>
 </html>
