@@ -4241,7 +4241,23 @@ namespace LIB
             LoadReadingProgressData();
         }
 
-        
+        private void AdminReportsPopularBooksButton_Click(object sender, RoutedEventArgs e)
+        {
+            ShowAdminContent("ReportsPopularBooks");
+            LoadPopularBooksReport();
+        }
+
+        private void AdminReportsAdminBooksButton_Click(object sender, RoutedEventArgs e)
+        {
+            ShowAdminContent("ReportsAdminBooks");
+            LoadAdminBooksReport();
+        }
+
+        private void AdminReportsUsersButton_Click(object sender, RoutedEventArgs e)
+        {
+            ShowAdminContent("ReportsUsers");
+            LoadUsersReport();
+        }
 
         private void AdminBackupButton_Click(object sender, RoutedEventArgs e)
         {
@@ -4619,6 +4635,254 @@ namespace LIB
             }
         }
 
+        private void LoadPopularBooksReport()
+        {
+            try
+            {
+                // Показываем диалог выбора периода
+                var dateDialog = ShowDateRangeDialog("Выберите период для отчёта о популярных книгах");
+                if (dateDialog == null) return;
+
+                DateTime dateFrom = dateDialog.Item1;
+                DateTime dateTo = dateDialog.Item2;
+
+                using (MySqlConnection connection = new MySqlConnection(conectionString))
+                {
+                    connection.Open();
+                    string query = @"
+                        SELECT 
+                            b.title AS 'Название книги',
+                            b.author AS 'Автор',
+                            COALESCE(b.series, 'Без категории') AS 'Категория',
+                            COUNT(ub.book_id) AS 'Количество добавлений',
+                            COUNT(DISTINCT ub.user_id) AS 'Уникальных пользователей'
+                        FROM user_books ub
+                        JOIN books b ON ub.book_id = b.id
+                        WHERE DATE(ub.added_at) BETWEEN @date_from AND @date_to
+                        GROUP BY b.id, b.title, b.author, b.series
+                        ORDER BY COUNT(ub.book_id) DESC, COUNT(DISTINCT ub.user_id) DESC
+                        LIMIT 100";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@date_from", dateFrom.ToString("yyyy-MM-dd"));
+                        cmd.Parameters.AddWithValue("@date_to", dateTo.ToString("yyyy-MM-dd"));
+                        
+                        DataTable table = new DataTable();
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            table.Load(reader);
+                        }
+                        DisplayAdminTable(table);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки отчёта о популярных книгах: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void LoadAdminBooksReport()
+        {
+            try
+            {
+                using (MySqlConnection connection = new MySqlConnection(conectionString))
+                {
+                    connection.Open();
+                    string query = @"
+                        SELECT 
+                            DATE_FORMAT(bf.added_at, '%d.%m.%Y %H:%i') AS 'Дата добавления',
+                            b.title AS 'Название',
+                            COALESCE(b.author, 'Не указан') AS 'Автор',
+                            COALESCE(b.series, 'Без категории') AS 'Категория',
+                            UPPER(bf.format) AS 'Формат',
+                            bf.file_name AS 'Имя файла'
+                        FROM book_files bf
+                        JOIN books b ON bf.book_id = b.id
+                        WHERE bf.source_type = 'server'
+                        ORDER BY bf.added_at DESC";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, connection))
+                    {
+                        DataTable table = new DataTable();
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            table.Load(reader);
+                        }
+                        DisplayAdminTable(table);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки отчёта о книгах администратора: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void LoadUsersReport()
+        {
+            try
+            {
+                using (MySqlConnection connection = new MySqlConnection(conectionString))
+                {
+                    connection.Open();
+                    string query = @"
+                        SELECT 
+                            u.UID AS 'ID',
+                            u.User_login AS 'Логин',
+                            CASE WHEN u.Is_admin = 1 THEN 'Администратор' ELSE 'Пользователь' END AS 'Статус',
+                            COUNT(DISTINCT ub.book_id) AS 'Количество книг',
+                            COUNT(DISTINCT rp.id) AS 'Сессий чтения',
+                            DATE_FORMAT(MIN(ub.added_at), '%d.%m.%Y') AS 'Дата первой книги',
+                            DATE_FORMAT(MAX(rp.last_read_at), '%d.%m.%Y %H:%i') AS 'Последняя активность'
+                        FROM users u
+                        LEFT JOIN user_books ub ON u.UID = ub.user_id
+                        LEFT JOIN reading_progress rp ON u.UID = rp.user_id
+                        GROUP BY u.UID, u.User_login, u.Is_admin
+                        ORDER BY u.UID ASC";
+
+                    using (MySqlCommand cmd = new MySqlCommand(query, connection))
+                    {
+                        DataTable table = new DataTable();
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            table.Load(reader);
+                        }
+                        DisplayAdminTable(table);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки отчёта о пользователях: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private Tuple<DateTime, DateTime>? ShowDateRangeDialog(string title)
+        {
+            var dialog = new Window
+            {
+                Title = title,
+                Width = 450,
+                Height = 350,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                Owner = this,
+                ResizeMode = ResizeMode.NoResize,
+                Background = this.Resources["WindowBackgroundBrush"] as SolidColorBrush
+            };
+
+            var grid = new Grid { Margin = new Thickness(20) };
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var dateFromLabel = new TextBlock
+            {
+                Text = "Дата начала:",
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            Grid.SetRow(dateFromLabel, 0);
+
+            var dateFromPicker = new DatePicker
+            {
+                SelectedDate = DateTime.Now.AddDays(-30),
+                Height = 35,
+                FontSize = 13
+            };
+            Grid.SetRow(dateFromPicker, 1);
+
+            var dateToLabel = new TextBlock
+            {
+                Text = "Дата окончания:",
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                Margin = new Thickness(0, 15, 0, 8)
+            };
+            Grid.SetRow(dateToLabel, 2);
+
+            var dateToPicker = new DatePicker
+            {
+                SelectedDate = DateTime.Now,
+                Height = 35,
+                FontSize = 13
+            };
+            Grid.SetRow(dateToPicker, 3);
+
+            var buttonPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 20, 0, 0)
+            };
+            Grid.SetRow(buttonPanel, 4);
+
+            var okButton = new Button
+            {
+                Content = "OK",
+                Width = 100,
+                Height = 35,
+                Margin = new Thickness(0, 0, 10, 0),
+                Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
+                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                Style = this.Resources["RoundedButtonStyle"] as Style
+            };
+
+            var cancelButton = new Button
+            {
+                Content = "Отмена",
+                Width = 100,
+                Height = 35,
+                Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
+                BorderBrush = this.Resources["ButtonBorderBrush"] as SolidColorBrush,
+                Foreground = this.Resources["TextBrush"] as SolidColorBrush,
+                Style = this.Resources["RoundedButtonStyle"] as Style
+            };
+
+            buttonPanel.Children.Add(okButton);
+            buttonPanel.Children.Add(cancelButton);
+
+            grid.Children.Add(dateFromLabel);
+            grid.Children.Add(dateFromPicker);
+            grid.Children.Add(dateToLabel);
+            grid.Children.Add(dateToPicker);
+            grid.Children.Add(buttonPanel);
+
+            dialog.Content = grid;
+
+            Tuple<DateTime, DateTime>? result = null;
+
+            okButton.Click += (s, args) =>
+            {
+                if (dateFromPicker.SelectedDate.HasValue && dateToPicker.SelectedDate.HasValue)
+                {
+                    result = Tuple.Create(dateFromPicker.SelectedDate.Value, dateToPicker.SelectedDate.Value);
+                    dialog.DialogResult = true;
+                    dialog.Close();
+                }
+                else
+                {
+                    MessageBox.Show("Пожалуйста, выберите обе даты.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            };
+
+            cancelButton.Click += (s, args) =>
+            {
+                dialog.DialogResult = false;
+                dialog.Close();
+            };
+
+            dialog.ShowDialog();
+            return result;
+        }
+
         private void CreateBackup()
         {
             try
@@ -4866,6 +5130,9 @@ namespace LIB
                 case "Progress": LoadReadingProgressData(); break;
                 case "Backup": LoadBackupData(); break;
                 case "ReadingStats": LoadReadingStatistics(); break;
+                case "ReportsPopularBooks": LoadPopularBooksReport(); break;
+                case "ReportsAdminBooks": LoadAdminBooksReport(); break;
+                case "ReportsUsers": LoadUsersReport(); break;
                 default: break;
             }
         }
@@ -5663,6 +5930,24 @@ namespace LIB
                 AdminLoadingPanel.Visibility = Visibility.Collapsed;
                 LoadBackupData();
             }
+            if (contentType == "ReportsPopularBooks")
+            {
+                await Task.Delay(1000);
+                AdminLoadingPanel.Visibility = Visibility.Collapsed;
+                LoadPopularBooksReport();
+            }
+            if (contentType == "ReportsAdminBooks")
+            {
+                await Task.Delay(1000);
+                AdminLoadingPanel.Visibility = Visibility.Collapsed;
+                LoadAdminBooksReport();
+            }
+            if (contentType == "ReportsUsers")
+            {
+                await Task.Delay(1000);
+                AdminLoadingPanel.Visibility = Visibility.Collapsed;
+                LoadUsersReport();
+            }
         }
 
         private void DisplayAdminTable(DataTable table)
@@ -5671,6 +5956,28 @@ namespace LIB
             AdminLoadingPanel.Visibility = Visibility.Collapsed;
             AdminContentControl.Visibility = Visibility.Visible;
             if (AdminActionsPanel != null) AdminActionsPanel.Visibility = Visibility.Visible;
+
+            // Управление кнопками действий/экспорта
+            if (AdminAddButton != null) AdminAddButton.Visibility = Visibility.Visible;
+            if (AdminEditButton != null) AdminEditButton.Visibility = Visibility.Visible;
+            if (AdminDeleteButton != null) AdminDeleteButton.Visibility = Visibility.Visible;
+            if (AdminExportExcelButton != null) AdminExportExcelButton.Visibility = Visibility.Collapsed;
+            if (AdminExportPdfButton != null) AdminExportPdfButton.Visibility = Visibility.Collapsed;
+
+            if (currentAdminContentType == "ReportsPopularBooks" || currentAdminContentType == "ReportsUsers")
+            {
+                if (AdminAddButton != null) AdminAddButton.Visibility = Visibility.Collapsed;
+                if (AdminEditButton != null) AdminEditButton.Visibility = Visibility.Collapsed;
+                if (AdminDeleteButton != null) AdminDeleteButton.Visibility = Visibility.Collapsed;
+                if (AdminExportExcelButton != null) AdminExportExcelButton.Visibility = Visibility.Visible;
+            }
+            else if (currentAdminContentType == "ReportsAdminBooks")
+            {
+                if (AdminAddButton != null) AdminAddButton.Visibility = Visibility.Collapsed;
+                if (AdminEditButton != null) AdminEditButton.Visibility = Visibility.Collapsed;
+                if (AdminDeleteButton != null) AdminDeleteButton.Visibility = Visibility.Collapsed;
+                if (AdminExportPdfButton != null) AdminExportPdfButton.Visibility = Visibility.Visible;
+            }
 
             // Скрываем ID-колонки
             if (AdminDataGrid != null && AdminDataGrid.Columns.Count > 0)
@@ -5684,6 +5991,178 @@ namespace LIB
                     }
                 }
             }
+        }
+
+        private DataTable? GetCurrentAdminDataTable()
+        {
+            try
+            {
+                if (AdminDataGrid?.ItemsSource is DataView dv)
+                {
+                    return dv.ToTable();
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        private void AdminExportExcel_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var table = GetCurrentAdminDataTable();
+                if (table == null || table.Columns.Count == 0)
+                {
+                    MessageBox.Show("Нет данных для экспорта.", "Экспорт", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                var dialog = new SaveFileDialog
+                {
+                    Title = "Сохранить отчёт (Excel)",
+                    Filter = "CSV (Excel) (*.csv)|*.csv",
+                    FileName = $"{currentAdminContentType}_{DateTime.Now:yyyy-MM-dd}.csv"
+                };
+
+                if (dialog.ShowDialog() != true) return;
+
+                using (var writer = new StreamWriter(dialog.FileName, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true)))
+                {
+                    // header
+                    var headers = table.Columns.Cast<DataColumn>().Select(c => c.ColumnName).ToArray();
+                    writer.WriteLine(string.Join(";", headers.Select(EscapeCsv)));
+
+                    foreach (DataRow row in table.Rows)
+                    {
+                        var values = table.Columns.Cast<DataColumn>()
+                            .Select(c => EscapeCsv(row[c]?.ToString() ?? ""))
+                            .ToArray();
+                        writer.WriteLine(string.Join(";", values));
+                    }
+                }
+
+                MessageBox.Show("Файл сохранён.", "Экспорт", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка экспорта в Excel: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private static string EscapeCsv(string value)
+        {
+            if (value == null) return "";
+            var mustQuote = value.Contains(';') || value.Contains('"') || value.Contains('\n') || value.Contains('\r');
+            if (value.Contains('"')) value = value.Replace("\"", "\"\"");
+            return mustQuote ? $"\"{value}\"" : value;
+        }
+
+        private void AdminExportPdf_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var table = GetCurrentAdminDataTable();
+                if (table == null || table.Columns.Count == 0)
+                {
+                    MessageBox.Show("Нет данных для экспорта.", "Экспорт", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                var dialog = new SaveFileDialog
+                {
+                    Title = "Сохранить отчёт (PDF)",
+                    Filter = "PDF (*.pdf)|*.pdf",
+                    FileName = $"{currentAdminContentType}_{DateTime.Now:yyyy-MM-dd}.pdf"
+                };
+
+                if (dialog.ShowDialog() != true) return;
+
+                var lines = new List<string>();
+                lines.Add($"Отчёт: {currentAdminContentType}");
+                lines.Add($"Дата: {DateTime.Now:dd.MM.yyyy HH:mm}");
+                lines.Add(new string('-', 60));
+
+                // Simple row serialization (fits single page)
+                int maxRows = 35;
+                int rowCount = 0;
+                foreach (DataRow row in table.Rows)
+                {
+                    if (rowCount++ >= maxRows) break;
+                    var parts = table.Columns.Cast<DataColumn>()
+                        .Select(c => (row[c]?.ToString() ?? "").Trim())
+                        .ToArray();
+                    lines.Add(string.Join(" | ", parts));
+                }
+
+                var pdfBytes = CreateSimplePdfBytes("Отчёт", lines);
+                File.WriteAllBytes(dialog.FileName, pdfBytes);
+
+                MessageBox.Show("Файл сохранён.", "Экспорт", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка экспорта в PDF: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // Minimal PDF generator (single page, text-only, Helvetica).
+        private static byte[] CreateSimplePdfBytes(string title, List<string> lines)
+        {
+            string EscapePdf(string s)
+            {
+                if (s == null) return "";
+                s = s.Replace("\\", "\\\\").Replace("(", "\\(").Replace(")", "\\)");
+                return s;
+            }
+
+            int x = 50;
+            int yStart = 800;
+            int lineHeight = 14;
+
+            var sb = new StringBuilder();
+            sb.Append("BT\n/F1 12 Tf\n");
+            int y = yStart;
+            sb.Append($"1 0 0 1 {x} {y} Tm\n({EscapePdf(title)}) Tj\n");
+            y -= lineHeight * 2;
+            foreach (var l in lines ?? new List<string>())
+            {
+                if (y < 60) break;
+                sb.Append($"1 0 0 1 {x} {y} Tm\n({EscapePdf(l)}) Tj\n");
+                y -= lineHeight;
+            }
+            sb.Append("ET\n");
+
+            var content = sb.ToString();
+            var objects = new List<string>
+            {
+                "<< /Type /Catalog /Pages 2 0 R >>",
+                "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+                "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+                "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+                $"<< /Length {Encoding.ASCII.GetByteCount(content)} >>\nstream\n{content}endstream"
+            };
+
+            var pdf = new StringBuilder();
+            pdf.Append("%PDF-1.4\n");
+            var xref = new List<int> { 0 };
+
+            for (int i = 0; i < objects.Count; i++)
+            {
+                xref.Add(Encoding.ASCII.GetByteCount(pdf.ToString()));
+                pdf.Append($"{i + 1} 0 obj\n{objects[i]}\nendobj\n");
+            }
+
+            int xrefPos = Encoding.ASCII.GetByteCount(pdf.ToString());
+            pdf.Append($"xref\n0 {objects.Count + 1}\n");
+            pdf.Append("0000000000 65535 f \n");
+            for (int i = 1; i <= objects.Count; i++)
+            {
+                pdf.Append($"{xref[i]:D10} 00000 n \n");
+            }
+            pdf.Append($"trailer\n<< /Size {objects.Count + 1} /Root 1 0 R >>\n");
+            pdf.Append($"startxref\n{xrefPos}\n%%EOF");
+
+            return Encoding.ASCII.GetBytes(pdf.ToString());
         }
 
         private void ShowAddBookDialog()

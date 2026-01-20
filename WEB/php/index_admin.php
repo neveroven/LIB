@@ -38,6 +38,9 @@ if (empty($_SESSION['is_admin']) || !$_SESSION['is_admin']) {
                     <button class="nav-button" onclick="loadFrame('reading_statistics.php')">📊 Статистика чтения</button>
                     <button class="nav-button" onclick="loadFrame('user_books.php')">📖 Книги пользователей</button>
                     <button class="nav-button" onclick="loadFrame('reading_progress.php')">📈 Прогресс чтения</button>
+                    <button class="nav-button" onclick="loadFrame('reports_popular_books.php')">📚 Отчёт: Популярные книги</button>
+                    <button class="nav-button" onclick="loadFrame('reports_admin_books.php')">📖 Отчёт: Книги администратора</button>
+                    <button class="nav-button" onclick="loadFrame('reports_users.php')">👥 Отчёт: Пользователи</button>
                 </div>
                 
                 <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--button-border);">

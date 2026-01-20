@@ -2441,7 +2441,38 @@ Margin="0,0,10,0">
                                Margin="0,15,0,5"
                                />
 
-                                    
+                                    <Button x:Name="AdminReportsPopularBooksButton"
+                            Content="📚 Отчёт: Популярные книги"
+                            Height="40"
+                            Margin="0,2"
+                            Background="{DynamicResource ButtonBackgroundBrush}"
+                            BorderBrush="{DynamicResource ButtonBorderBrush}"
+                            Foreground="{DynamicResource TextBrush}"
+                            FontSize="13"
+                            Style="{StaticResource RoundedButtonStyle}"
+                            Click="AdminReportsPopularBooksButton_Click"/>
+
+                                    <Button x:Name="AdminReportsAdminBooksButton"
+                            Content="📖 Отчёт: Книги администратора"
+                            Height="40"
+                            Margin="0,2"
+                            Background="{DynamicResource ButtonBackgroundBrush}"
+                            BorderBrush="{DynamicResource ButtonBorderBrush}"
+                            Foreground="{DynamicResource TextBrush}"
+                            FontSize="13"
+                            Style="{StaticResource RoundedButtonStyle}"
+                            Click="AdminReportsAdminBooksButton_Click"/>
+
+                                    <Button x:Name="AdminReportsUsersButton"
+                            Content="👥 Отчёт: Пользователи"
+                            Height="40"
+                            Margin="0,2"
+                            Background="{DynamicResource ButtonBackgroundBrush}"
+                            BorderBrush="{DynamicResource ButtonBorderBrush}"
+                            Foreground="{DynamicResource TextBrush}"
+                            FontSize="13"
+                            Style="{StaticResource RoundedButtonStyle}"
+                            Click="AdminReportsUsersButton_Click"/>
 
                                     <!-- Система -->
                                     <TextBlock Text="Система"
@@ -2680,7 +2711,8 @@ Margin="0,0,10,0">
                                                     HorizontalAlignment="Right"
                                                     Visibility="Collapsed"
                                                     DockPanel.Dock="Top">
-                                            <Button Content="➕ Добавить"
+                                            <Button x:Name="AdminAddButton"
+                                                    Content="➕ Добавить"
                                                     Width="110"
                                                     Height="32"
                                                     Margin="0,0,5,0"
@@ -2689,7 +2721,8 @@ Margin="0,0,10,0">
                                                     Foreground="{DynamicResource TextBrush}"
                                                     Style="{StaticResource RoundedButtonStyle}"
                                                     Click="AdminAddRecord_Click"/>
-                                            <Button Content="✏️ Редактировать"
+                                            <Button x:Name="AdminEditButton"
+                                                    Content="✏️ Редактировать"
                                                     Width="130"
                                                     Height="32"
                                                     Margin="0,0,5,0"
@@ -2698,14 +2731,39 @@ Margin="0,0,10,0">
                                                     Foreground="{DynamicResource TextBrush}"
                                                     Style="{StaticResource RoundedButtonStyle}"
                                                     Click="AdminEditRecord_Click"/>
-                                            <Button Content="🗑️ Удалить"
+                                            <Button x:Name="AdminDeleteButton"
+                                                    Content="🗑️ Удалить"
+                                                    Width="110"
+                                                    Height="32"
+                                                    Margin="0,0,10,0"
+                                                    Background="{DynamicResource ButtonBackgroundBrush}"
+                                                    BorderBrush="{DynamicResource ButtonBorderBrush}"
+                                                    Foreground="{DynamicResource TextBrush}"
+                                                    Style="{StaticResource RoundedButtonStyle}"
+                                                    Click="AdminDeleteRecord_Click"/>
+
+                                            <Button x:Name="AdminExportExcelButton"
+                                                    Content="⬇ Excel"
+                                                    Width="110"
+                                                    Height="32"
+                                                    Margin="0,0,5,0"
+                                                    Background="{DynamicResource ButtonBackgroundBrush}"
+                                                    BorderBrush="{DynamicResource ButtonBorderBrush}"
+                                                    Foreground="{DynamicResource TextBrush}"
+                                                    Style="{StaticResource RoundedButtonStyle}"
+                                                    Click="AdminExportExcel_Click"
+                                                    Visibility="Collapsed"/>
+
+                                            <Button x:Name="AdminExportPdfButton"
+                                                    Content="⬇ PDF"
                                                     Width="110"
                                                     Height="32"
                                                     Background="{DynamicResource ButtonBackgroundBrush}"
                                                     BorderBrush="{DynamicResource ButtonBorderBrush}"
                                                     Foreground="{DynamicResource TextBrush}"
                                                     Style="{StaticResource RoundedButtonStyle}"
-                                                    Click="AdminDeleteRecord_Click"/>
+                                                    Click="AdminExportPdf_Click"
+                                                    Visibility="Collapsed"/>
                                         </StackPanel>
                                         <DataGrid x:Name="AdminDataGrid"
                                                   AutoGenerateColumns="True"
