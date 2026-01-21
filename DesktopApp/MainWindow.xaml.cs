@@ -4208,61 +4208,61 @@ namespace LIB
         private void AdminBooksButton_Click(object sender, RoutedEventArgs e)
         {
             ShowAdminContent("Books");
-            LoadBooksData();
+            
         }
 
         private void AdminBookFilesButton_Click(object sender, RoutedEventArgs e)
         {
             ShowAdminContent("BookFiles");
-            LoadBookFilesData();
+            
         }
 
         private void AdminUsersButton_Click(object sender, RoutedEventArgs e)
         {
             ShowAdminContent("Users");
-            LoadUsersData();
+            
         }
 
         private void AdminReadingStatsButton_Click(object sender, RoutedEventArgs e)
         {
             ShowAdminContent("ReadingStats");
-            LoadReadingStatistics();
+            
         }
 
         private void AdminUserBooksButton_Click(object sender, RoutedEventArgs e)
         {
             ShowAdminContent("UserBooks");
-            LoadUserBooksData();
+            
         }
 
         private void AdminProgressButton_Click(object sender, RoutedEventArgs e)
         {
             ShowAdminContent("Progress");
-            LoadReadingProgressData();
+            
         }
 
         private void AdminReportsPopularBooksButton_Click(object sender, RoutedEventArgs e)
         {
             ShowAdminContent("ReportsPopularBooks");
-            LoadPopularBooksReport();
+            
         }
 
         private void AdminReportsAdminBooksButton_Click(object sender, RoutedEventArgs e)
         {
             ShowAdminContent("ReportsAdminBooks");
-            LoadAdminBooksReport();
+            
         }
 
         private void AdminReportsUsersButton_Click(object sender, RoutedEventArgs e)
         {
             ShowAdminContent("ReportsUsers");
-            LoadUsersReport();
+            
         }
 
         private void AdminBackupButton_Click(object sender, RoutedEventArgs e)
         {
             ShowAdminContent("Backup");
-            LoadBackupData();
+            
         }
 
         // === БЫСТРЫЕ ДЕЙСТВИЯ НА ГЛАВНОЙ ПАНЕЛИ ===
