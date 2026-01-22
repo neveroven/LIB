@@ -18,6 +18,10 @@ using UglyToad.PdfPig.Content;
 using MySqlConnector;
 using Microsoft.Extensions.Configuration;
 using BCrypt.Net;
+using Spire.Pdf;
+using Spire.Pdf.Graphics;
+using Spire.Pdf.Tables;
+using System.Drawing;
 
 namespace LIB
 {
@@ -1480,7 +1484,7 @@ namespace LIB
         {
             try
             {
-                using (PdfDocument document = PdfDocument.Open(filePath))
+                using (UglyToad.PdfPig.PdfDocument document = UglyToad.PdfPig.PdfDocument.Open(filePath))
                 {
                     var result = new StringBuilder();
 
@@ -2369,7 +2373,7 @@ namespace LIB
                 {
                     // Позиция элемента относительно ScrollViewer
                     GeneralTransform transform = fe.TransformToAncestor(scrollViewer);
-                    Point topLeft = transform.Transform(new Point(0, 0));
+                    System.Windows.Point topLeft = transform.Transform(new System.Windows.Point(0, 0));
                     double elemTop = topLeft.Y;
                     double elemBottom = elemTop + fe.RenderSize.Height;
 
@@ -3253,7 +3257,7 @@ namespace LIB
                 var textBox = new TextBox
                 {
                     Text = currentXmlContent,
-                    FontFamily = new FontFamily("Consolas"),
+                    FontFamily = new System.Windows.Media.FontFamily("Consolas"),
                     FontSize = 12,
                     Background = this.Resources["ButtonBackgroundBrush"] as SolidColorBrush,
                     Foreground = this.Resources["TextBrush"] as SolidColorBrush,
@@ -3647,7 +3651,7 @@ namespace LIB
                 Padding = new Thickness(0,0,10, 5),
                 VerticalContentAlignment = VerticalAlignment.Center,
                 Background = new SolidColorBrush(Colors.White),
-                BorderBrush = new SolidColorBrush(Color.FromRgb(204, 204, 204)),
+                BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(204, 204, 204)),
                 BorderThickness = new Thickness(2),
                 Foreground = new SolidColorBrush(Colors.Black),
                 Text = dbFolderPath
@@ -3942,18 +3946,18 @@ namespace LIB
             if (isDarkTheme)
             {
                 // Переключение на тёмную тему
-                this.Resources["WindowBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(30, 30, 30));
+                this.Resources["WindowBackgroundBrush"] = new SolidColorBrush(System.Windows.Media.Color.FromRgb(30, 30, 30));
                 this.Resources["TextBrush"] = new SolidColorBrush(Colors.White);
-                this.Resources["ButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(64, 64, 64));
-                this.Resources["ButtonBorderBrush"] = new SolidColorBrush(Color.FromRgb(130, 130, 130));
+                this.Resources["ButtonBackgroundBrush"] = new SolidColorBrush(System.Windows.Media.Color.FromRgb(64, 64, 64));
+                this.Resources["ButtonBorderBrush"] = new SolidColorBrush(System.Windows.Media.Color.FromRgb(130, 130, 130));
             }
             else
             {
                 // Переключение на светлую тему
                 this.Resources["WindowBackgroundBrush"] = new SolidColorBrush(Colors.White);
                 this.Resources["TextBrush"] = new SolidColorBrush(Colors.Black);
-                this.Resources["ButtonBackgroundBrush"] = new SolidColorBrush(Color.FromRgb(255, 218, 185));
-                this.Resources["ButtonBorderBrush"] = new SolidColorBrush(Color.FromRgb(51, 51, 51));
+                this.Resources["ButtonBackgroundBrush"] = new SolidColorBrush(  System.Windows.Media.Color.FromRgb(255, 218, 185));
+                this.Resources["ButtonBorderBrush"] = new SolidColorBrush(System.Windows.Media.Color.FromRgb(51, 51, 51));
             }
             this.InvalidateVisual();
         }
@@ -5654,8 +5658,8 @@ namespace LIB
                 Text = defaultValue,
                 Height = 32,
                 Padding = new Thickness(8, 4, 8, 4),
-                Background = Brushes.White,
-                Foreground = Brushes.Black
+                Background = System.Windows.Media.Brushes.White,
+                Foreground = System.Windows.Media.Brushes.Black
             };
             Grid.SetRow(tb, 1);
 
@@ -5769,8 +5773,8 @@ namespace LIB
                         Text = field.DefaultValue,
                         Height = 28,
                         Padding = new Thickness(6, 3, 6, 3),
-                        Background = Brushes.White,
-                        Foreground = Brushes.Black
+                        Background = System.Windows.Media.Brushes.White,
+                        Foreground = System.Windows.Media.Brushes.Black
                     };
                     input = tb;
                 }
@@ -6077,25 +6081,49 @@ namespace LIB
 
                 if (dialog.ShowDialog() != true) return;
 
-                var lines = new List<string>();
-                lines.Add($"Отчёт: {currentAdminContentType}");
-                lines.Add($"Дата: {DateTime.Now:dd.MM.yyyy HH:mm}");
-                lines.Add(new string('-', 60));
+                // Создаём PDF документ через Spire.PDF
+                Spire.Pdf.PdfDocument pdfDoc = new Spire.Pdf.PdfDocument();
+                PdfPageBase page = pdfDoc.Pages.Add(PdfPageSize.A4);
 
-                // Simple row serialization (fits single page)
-                int maxRows = 35;
-                int rowCount = 0;
-                foreach (DataRow row in table.Rows)
-                {
-                    if (rowCount++ >= maxRows) break;
-                    var parts = table.Columns.Cast<DataColumn>()
-                        .Select(c => (row[c]?.ToString() ?? "").Trim())
-                        .ToArray();
-                    lines.Add(string.Join(" | ", parts));
-                }
+                // Настройка шрифта с поддержкой кириллицы
+                // Используем системный шрифт Arial через PdfTrueTypeFont для полной поддержки Unicode
+                PdfTrueTypeFont titleFont = new PdfTrueTypeFont(new System.Drawing.Font("Arial", 16, System.Drawing.FontStyle.Bold), true);
+                PdfTrueTypeFont headerFont = new PdfTrueTypeFont(new System.Drawing.Font("Arial", 10, System.Drawing.FontStyle.Bold), true);
+                PdfTrueTypeFont contentFont = new PdfTrueTypeFont(new System.Drawing.Font("Arial", 9, System.Drawing.FontStyle.Regular), true);
 
-                var pdfBytes = CreateSimplePdfBytes("Отчёт", lines);
-                File.WriteAllBytes(dialog.FileName, pdfBytes);
+                // Заголовок отчёта
+                PdfBrush brush = new PdfSolidBrush(System.Drawing.Color.Black);
+                float y = 20;
+                page.Canvas.DrawString($"Отчёт: {currentAdminContentType}", titleFont, brush, 20, y);
+                y += 25;
+                page.Canvas.DrawString($"Дата: {DateTime.Now:dd.MM.yyyy HH:mm}", contentFont, brush, 20, y);
+                y += 30;
+
+                // Создаём таблицу для данных
+                PdfTable pdfTable = new PdfTable();
+                pdfTable.Style.CellPadding = 2;
+                //pdfTable.Style.HeaderSource = PdfHeaderSource.Rows;
+                //pdfTable.Style.HeaderRowCount = 1;
+                //pdfTable.Style.ShowHeader = true;
+                //pdfTable.Style.HeaderStyle.BackgroundBrush = new PdfSolidBrush(System.Drawing.Color.LightGray);
+                //pdfTable.Style.HeaderStyle.TextBrush = new PdfSolidBrush(System.Drawing.Color.Black);
+                //pdfTable.Style.HeaderStyle.Font = headerFont;
+                pdfTable.Style.BorderPen = new PdfPen(System.Drawing.Color.Black, 0.5f);
+                
+                // Настраиваем стиль для обычных ячеек с поддержкой кириллицы
+                pdfTable.Style.DefaultStyle.Font = contentFont;
+                pdfTable.Style.DefaultStyle.TextBrush = new PdfSolidBrush(System.Drawing.Color.Black);
+
+                // Используем DataTable напрямую как источник данных для таблицы
+                // Spire.PDF автоматически создаст таблицу с заголовками из названий колонок
+                pdfTable.DataSource = table;
+
+                // Рисуем таблицу на странице
+                pdfTable.Draw(page, new PointF(20, y));
+
+                // Сохраняем PDF
+                pdfDoc.SaveToFile(dialog.FileName, FileFormat.PDF);
+                pdfDoc.Close();
 
                 MessageBox.Show("Файл сохранён.", "Экспорт", MessageBoxButton.OK, MessageBoxImage.Information);
             }
@@ -6105,65 +6133,6 @@ namespace LIB
             }
         }
 
-        // Minimal PDF generator (single page, text-only, Helvetica).
-        private static byte[] CreateSimplePdfBytes(string title, List<string> lines)
-        {
-            string EscapePdf(string s)
-            {
-                if (s == null) return "";
-                s = s.Replace("\\", "\\\\").Replace("(", "\\(").Replace(")", "\\)");
-                return s;
-            }
-
-            int x = 50;
-            int yStart = 800;
-            int lineHeight = 14;
-
-            var sb = new StringBuilder();
-            sb.Append("BT\n/F1 12 Tf\n");
-            int y = yStart;
-            sb.Append($"1 0 0 1 {x} {y} Tm\n({EscapePdf(title)}) Tj\n");
-            y -= lineHeight * 2;
-            foreach (var l in lines ?? new List<string>())
-            {
-                if (y < 60) break;
-                sb.Append($"1 0 0 1 {x} {y} Tm\n({EscapePdf(l)}) Tj\n");
-                y -= lineHeight;
-            }
-            sb.Append("ET\n");
-
-            var content = sb.ToString();
-            var objects = new List<string>
-            {
-                "<< /Type /Catalog /Pages 2 0 R >>",
-                "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-                "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
-                "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-                $"<< /Length {Encoding.ASCII.GetByteCount(content)} >>\nstream\n{content}endstream"
-            };
-
-            var pdf = new StringBuilder();
-            pdf.Append("%PDF-1.4\n");
-            var xref = new List<int> { 0 };
-
-            for (int i = 0; i < objects.Count; i++)
-            {
-                xref.Add(Encoding.ASCII.GetByteCount(pdf.ToString()));
-                pdf.Append($"{i + 1} 0 obj\n{objects[i]}\nendobj\n");
-            }
-
-            int xrefPos = Encoding.ASCII.GetByteCount(pdf.ToString());
-            pdf.Append($"xref\n0 {objects.Count + 1}\n");
-            pdf.Append("0000000000 65535 f \n");
-            for (int i = 1; i <= objects.Count; i++)
-            {
-                pdf.Append($"{xref[i]:D10} 00000 n \n");
-            }
-            pdf.Append($"trailer\n<< /Size {objects.Count + 1} /Root 1 0 R >>\n");
-            pdf.Append($"startxref\n{xrefPos}\n%%EOF");
-
-            return Encoding.ASCII.GetBytes(pdf.ToString());
-        }
 
         private void ShowAddBookDialog()
         {

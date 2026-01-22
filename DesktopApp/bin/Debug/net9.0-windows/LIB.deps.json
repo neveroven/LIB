@@ -12,7 +12,8 @@
           "Microsoft.Extensions.Configuration.Binder": "9.0.9",
           "Microsoft.Extensions.Configuration.EnvironmentVariables": "9.0.9",
           "MySqlConnector": "2.4.0",
-          "PdfPig": "0.1.11"
+          "PdfPig": "0.1.11",
+          "Spire.PDF": "10.12.4"
         },
         "runtime": {
           "LIB.dll": {}
@@ -99,6 +100,7 @@
           }
         }
       },
+      "Microsoft.Win32.SystemEvents/6.0.0": {},
       "MySqlConnector/2.4.0": {
         "dependencies": {
           "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.2",
@@ -141,6 +143,29 @@
             "assemblyVersion": "0.1.11.0",
             "fileVersion": "0.1.11.0"
           }
+        }
+      },
+      "Spire.PDF/10.12.4": {
+        "dependencies": {
+          "System.Drawing.Common": "6.0.0",
+          "System.Text.Encoding.CodePages": "6.0.0"
+        },
+        "runtime": {
+          "lib/net6.0/Spire.Pdf.dll": {
+            "assemblyVersion": "10.12.4.0",
+            "fileVersion": "10.12.4.1360"
+          }
+        }
+      },
+      "System.Drawing.Common/6.0.0": {
+        "dependencies": {
+          "Microsoft.Win32.SystemEvents": "6.0.0"
+        }
+      },
+      "System.Runtime.CompilerServices.Unsafe/6.0.0": {},
+      "System.Text.Encoding.CodePages/6.0.0": {
+        "dependencies": {
+          "System.Runtime.CompilerServices.Unsafe": "6.0.0"
         }
       }
     }
@@ -207,6 +232,13 @@
       "path": "microsoft.extensions.primitives/9.0.9",
       "hashPath": "microsoft.extensions.primitives.9.0.9.nupkg.sha512"
     },
+    "Microsoft.Win32.SystemEvents/6.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-hqTM5628jSsQiv+HGpiq3WKBl2c8v1KZfby2J6Pr7pEPlK9waPdgEO6b8A/+/xn/yZ9ulv8HuqK71ONy2tg67A==",
+      "path": "microsoft.win32.systemevents/6.0.0",
+      "hashPath": "microsoft.win32.systemevents.6.0.0.nupkg.sha512"
+    },
     "MySqlConnector/2.4.0": {
       "type": "package",
       "serviceable": true,
@@ -220,6 +252,34 @@
       "sha512": "sha512-pGAhccH2pXU5SzNPs94kGD+HnChHWrW/234en2Ky+RSAAui4o7msOiUdePErOmM2FY/wnyfj3MY/WRAhjnlRVw==",
       "path": "pdfpig/0.1.11",
       "hashPath": "pdfpig.0.1.11.nupkg.sha512"
+    },
+    "Spire.PDF/10.12.4": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-jHheltQTSfW+llqwn7B2NAjKpNMfjMHOkXFHmlzKedbnItiKstD3W3m0phoaubRxlRmtfnpya3GhiK3WKC5eEQ==",
+      "path": "spire.pdf/10.12.4",
+      "hashPath": "spire.pdf.10.12.4.nupkg.sha512"
+    },
+    "System.Drawing.Common/6.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-NfuoKUiP2nUWwKZN6twGqXioIe1zVD0RIj2t976A+czLHr2nY454RwwXs6JU9Htc6mwqL6Dn/nEL3dpVf2jOhg==",
+      "path": "system.drawing.common/6.0.0",
+      "hashPath": "system.drawing.common.6.0.0.nupkg.sha512"
+    },
+    "System.Runtime.CompilerServices.Unsafe/6.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-/iUeP3tq1S0XdNNoMz5C9twLSrM/TH+qElHkXWaPvuNOt+99G75NrV0OS2EqHx5wMN7popYjpc8oTjC1y16DLg==",
+      "path": "system.runtime.compilerservices.unsafe/6.0.0",
+      "hashPath": "system.runtime.compilerservices.unsafe.6.0.0.nupkg.sha512"
+    },
+    "System.Text.Encoding.CodePages/6.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-ZFCILZuOvtKPauZ/j/swhvw68ZRi9ATCfvGbk1QfydmcXBkIWecWKn/250UH7rahZ5OoDBaiAudJtPvLwzw85A==",
+      "path": "system.text.encoding.codepages/6.0.0",
+      "hashPath": "system.text.encoding.codepages.6.0.0.nupkg.sha512"
     }
   }
 }
