@@ -53,11 +53,17 @@ if (isset($_GET['export']) && $_GET['export'] === 'pdf') {
         if ($i > 40) break; // single page guard
     }
 
-    $pdf = simple_pdf_from_lines('Отчёт: Книги администратора', $lines);
-    header('Content-Type: application/pdf');
-    header('Content-Disposition: attachment; filename="admin_books_' . date('Y-m-d') . '.pdf"');
-    header('Content-Length: ' . strlen($pdf));
-    echo $pdf;
+    try {
+        $pdf = simple_pdf_from_lines('Отчёт: Книги администратора', $lines);
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment; filename="admin_books_' . date('Y-m-d') . '.pdf"');
+        header('Content-Length: ' . strlen($pdf));
+        echo $pdf;
+    } catch (RuntimeException $e) {
+        $_SESSION['pdf_error'] = $e->getMessage();
+        header('Location: reports_admin_books.php');
+        exit();
+    }
     exit();
 }
 ?>
@@ -88,6 +94,10 @@ if (isset($_GET['export']) && $_GET['export'] === 'pdf') {
             <div class="card-body">
                 <?php if (!empty($error)): ?>
                     <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
+                <?php endif; ?>
+                <?php if (!empty($_SESSION['pdf_error'])): ?>
+                    <div class="alert alert-warning"><?= htmlspecialchars($_SESSION['pdf_error']) ?></div>
+                    <?php unset($_SESSION['pdf_error']); ?>
                 <?php endif; ?>
                 
                 <div class="table-responsive">
