@@ -53,15 +53,25 @@ if ($stmt) {
 // === EXPORT ===
 if (isset($_GET['export']) && $_GET['export'] === 'excel') {
     $filename = "popular_books_{$date_from}_{$date_to}.csv";
-    header('Content-Type: text/csv; charset=UTF-8');
+
+    // Тип Excel-файла, чтобы корректно открывалось в Excel
+    header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
     header('Content-Disposition: attachment; filename="' . $filename . '"');
     header('Pragma: no-cache');
     header('Expires: 0');
 
     $out = fopen('php://output', 'w');
-    // UTF-8 BOM for Excel
+    // UTF-8 BOM для корректного отображения кириллицы
     fwrite($out, "\xEF\xBB\xBF");
 
+    // Заголовочная часть отчёта
+    $periodText = 'Период: ' . date('d.m.Y', strtotime($date_from)) . ' - ' . date('d.m.Y', strtotime($date_to));
+    fputcsv($out, ['Отчёт: Популярные книги - Paradise Library'], ';');
+    fputcsv($out, [$periodText], ';');
+    fputcsv($out, ['Дата формирования: ' . date('d.m.Y H:i')], ';');
+    fputcsv($out, [''], ';'); // пустая строка-разделитель
+
+    // Основная таблица
     fputcsv($out, ['Название книги', 'Автор', 'Категория', 'Количество добавлений', 'Уникальных пользователей'], ';');
     foreach ($popular_books as $row) {
         fputcsv($out, [

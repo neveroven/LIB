@@ -37,28 +37,91 @@ if ($result) {
 
 // === EXPORT ===
 if (isset($_GET['export']) && $_GET['export'] === 'pdf') {
-    $lines = [];
-    $lines[] = "Книги, добавленные администратором (source_type=server)";
-    $lines[] = "Дата формирования: " . date('d.m.Y H:i');
-    $lines[] = str_repeat('-', 60);
-
-    $i = 1;
-    foreach ($admin_books as $b) {
-        $date = !empty($b['date_added']) ? date('d.m.Y H:i', strtotime($b['date_added'])) : '-';
-        $title = $b['title'] ?? '';
-        $author = !empty($b['author']) ? $b['author'] : 'Не указан';
-        $cat = !empty($b['category']) ? $b['category'] : 'Без категории';
-        $lines[] = "{$i}. {$date} | {$title} | {$author} | {$cat}";
-        $i++;
-        if ($i > 40) break; // single page guard
-    }
-
     try {
-        $pdf = simple_pdf_from_lines('Отчёт: Книги администратора', $lines);
+        // Используем TCPDF напрямую, чтобы сделать нормальную табличную верстку
+        $tcpdf_path = spdf_find_tcpdf();
+        if (!$tcpdf_path) {
+            throw new RuntimeException(
+                'TCPDF не найден. Установите его через "composer install" в каталоге WEB ' .
+                'или распакуйте TCPDF в WEB/php/lib/TCPDF/.'
+            );
+        }
+
+        require_once $tcpdf_path;
+
+        $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
+        $pdf->SetCreator('Paradise Library');
+        $pdf->SetTitle('Отчёт: Книги администратора');
+        $pdf->SetMargins(15, 20, 15);
+        $pdf->SetAutoPageBreak(true, 20);
+
+        $pdf->AddPage();
+
+        // Заголовок
+        $pdf->SetFont('dejavusans', 'B', 16);
+        $pdf->Cell(0, 10, 'Отчёт: Книги администратора', 0, 1, 'L');
+
+        // Подзаголовок / дата
+        $pdf->SetFont('dejavusans', '', 11);
+        $pdf->Ln(2);
+        $pdf->Cell(0, 6, 'Книги, добавленные администратором (source_type=server)', 0, 1, 'L');
+        $pdf->Cell(0, 6, 'Дата формирования: ' . date('d.m.Y H:i'), 0, 1, 'L');
+        $pdf->Ln(4);
+
+        // Таблица
+        $pdf->SetFont('dejavusans', '', 9);
+
+        // Ширины колонок: №, Дата, Название, Автор, Категория, Формат, Файл
+        $w = [8, 26, 55, 35, 30, 14, 32];
+
+        // Заголовок таблицы
+        $pdf->SetFillColor(52, 58, 64);   // тёмно-серый фон
+        $pdf->SetTextColor(255, 255, 255);
+        $pdf->SetDrawColor(200, 200, 200);
+        $pdf->SetLineWidth(0.2);
+        $pdf->SetFont('dejavusans', 'B', 9);
+
+        $headers = ['№', 'Дата', 'Название', 'Автор', 'Категория', 'Формат', 'Файл'];
+        foreach ($headers as $i => $h) {
+            $pdf->Cell($w[$i], 7, $h, 1, 0, 'C', 1);
+        }
+        $pdf->Ln();
+
+        // Строки таблицы
+        $pdf->SetFont('dejavusans', '', 9);
+        $pdf->SetTextColor(0, 0, 0);
+        $fill = 0;
+        $rowIndex = 1;
+
+        foreach ($admin_books as $b) {
+            $date = !empty($b['date_added']) ? date('d.m.Y H:i', strtotime($b['date_added'])) : '-';
+            $title = $b['title'] ?? '';
+            $author = !empty($b['author']) ? $b['author'] : 'Не указан';
+            $cat = !empty($b['category']) ? $b['category'] : 'Без категории';
+            $format = strtoupper($b['format'] ?? '');
+            $fileName = $b['file_name'] ?? '';
+
+            $pdf->SetFillColor($fill ? 245 : 255, $fill ? 245 : 255, $fill ? 245 : 255);
+
+            $pdf->Cell($w[0], 6, $rowIndex, 1, 0, 'C', 1);
+            $pdf->Cell($w[1], 6, $date, 1, 0, 'C', 1);
+            $pdf->Cell($w[2], 6, $title, 1, 0, 'L', 1);
+            $pdf->Cell($w[3], 6, $author, 1, 0, 'L', 1);
+            $pdf->Cell($w[4], 6, $cat, 1, 0, 'L', 1);
+            $pdf->Cell($w[5], 6, $format, 1, 0, 'C', 1);
+            $pdf->Cell($w[6], 6, $fileName, 1, 0, 'L', 1);
+            $pdf->Ln();
+
+            $fill = !$fill;
+            $rowIndex++;
+        }
+
+        $pdfContent = $pdf->Output('', 'S');
+
         header('Content-Type: application/pdf');
         header('Content-Disposition: attachment; filename="admin_books_' . date('Y-m-d') . '.pdf"');
-        header('Content-Length: ' . strlen($pdf));
-        echo $pdf;
+        header('Content-Length: ' . strlen($pdfContent));
+        echo $pdfContent;
     } catch (RuntimeException $e) {
         $_SESSION['pdf_error'] = $e->getMessage();
         header('Location: reports_admin_books.php');

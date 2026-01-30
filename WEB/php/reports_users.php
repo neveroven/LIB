@@ -39,15 +39,23 @@ if ($result) {
 // === EXPORT ===
 if (isset($_GET['export']) && $_GET['export'] === 'excel') {
     $filename = "users_report_" . date('Y-m-d') . ".csv";
-    header('Content-Type: text/csv; charset=UTF-8');
+
+    // Используем тип Excel-файла, чтобы Windows/браузеры открывали файл сразу в Excel
+    header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
     header('Content-Disposition: attachment; filename="' . $filename . '"');
     header('Pragma: no-cache');
     header('Expires: 0');
 
     $out = fopen('php://output', 'w');
-    // UTF-8 BOM for Excel
+    // UTF-8 BOM для корректного отображения кириллицы в Excel
     fwrite($out, "\xEF\xBB\xBF");
 
+    // Заголовочная часть отчёта
+    fputcsv($out, ['Отчёт: Пользователи - Paradise Library'], ';');
+    fputcsv($out, ['Дата формирования: ' . date('d.m.Y H:i')], ';');
+    fputcsv($out, [''], ';'); // пустая строка-разделитель
+
+    // Основная таблица
     fputcsv($out, ['ID', 'Логин', 'Статус', 'Количество книг', 'Сессий чтения', 'Дата первой книги', 'Последняя активность'], ';');
     foreach ($users as $u) {
         fputcsv($out, [
