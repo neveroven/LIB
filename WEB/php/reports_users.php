@@ -36,48 +36,105 @@ if ($result) {
     $error = "Ошибка выполнения запроса: " . mysqli_error($connect);
 }
 
-// === EXPORT ===
-if (isset($_GET['export']) && $_GET['export'] === 'excel') {
-    $filename = "users_report_" . date('Y-m-d') . ".csv";
-
-    // Используем тип Excel-файла, чтобы Windows/браузеры открывали файл сразу в Excel
-    header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
-    header('Content-Disposition: attachment; filename="' . $filename . '"');
-    header('Pragma: no-cache');
-    header('Expires: 0');
-
-    $out = fopen('php://output', 'w');
-    // UTF-8 BOM для корректного отображения кириллицы в Excel
-    fwrite($out, "\xEF\xBB\xBF");
-
-    // Заголовочная часть отчёта
-    fputcsv($out, ['Отчёт: Пользователи - Paradise Library'], ';');
-    fputcsv($out, ['Дата формирования: ' . date('d.m.Y H:i')], ';');
-    fputcsv($out, [''], ';'); // пустая строка-разделитель
-
-    // Основная таблица
-    fputcsv($out, ['ID', 'Логин', 'Статус', 'Количество книг', 'Сессий чтения', 'Дата первой книги', 'Последняя активность'], ';');
-    foreach ($users as $u) {
-        fputcsv($out, [
-            $u['user_id'] ?? '',
-            $u['login'] ?? '',
-            (($u['is_admin'] ?? 0) == 1) ? 'Администратор' : 'Пользователь',
-            $u['books_count'] ?? 0,
-            $u['reading_sessions'] ?? 0,
-            !empty($u['first_book_date']) ? date('d.m.Y', strtotime($u['first_book_date'])) : '',
-            !empty($u['last_activity']) ? date('d.m.Y H:i', strtotime($u['last_activity'])) : '',
-        ], ';');
-    }
-
-    fclose($out);
-    exit();
-}
-
-// Подсчет статистики
+// Подсчет статистики (нужно до экспорта)
 $total_users = count($users);
 $admin_count = count(array_filter($users, function($u) { return $u['is_admin'] == 1; }));
 $regular_users = $total_users - $admin_count;
 $active_users = count(array_filter($users, function($u) { return !empty($u['last_activity']); }));
+
+// === EXPORT ===
+if (isset($_GET['export']) && $_GET['export'] === 'excel') {
+    $filename = "users_report_" . date('Y-m-d') . ".xls";
+    
+    // Создаём HTML таблицу с форматированием для Excel
+    $html = '<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+    <meta charset="UTF-8">
+    <!--[if gte mso 9]>
+    <xml>
+        <x:ExcelWorkbook>
+            <x:ExcelWorksheets>
+                <x:ExcelWorksheet>
+                    <x:Name>Пользователи</x:Name>
+                </x:ExcelWorksheet>
+            </x:ExcelWorksheets>
+        </x:ExcelWorkbook>
+    </xml>
+    <![endif]-->
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .header { background-color: #4472C4; color: white; font-weight: bold; text-align: center; padding: 10px; }
+        .title { font-size: 16px; font-weight: bold; padding: 15px 5px; background-color: #D9E1F2; }
+        .info { padding: 5px; background-color: #F2F2F2; }
+        .stats { margin: 10px 0; }
+        .stat-box { display: inline-block; padding: 10px 15px; margin: 5px; background-color: #E7E6E6; border: 1px solid #000; }
+        table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+        th { background-color: #4472C4; color: white; font-weight: bold; padding: 10px; border: 1px solid #000; text-align: center; }
+        td { padding: 8px; border: 1px solid #666; }
+        tr:nth-child(even) { background-color: #F2F2F2; }
+        .number { text-align: center; }
+        .text-left { text-align: left; }
+        .status-admin { background-color: #FFC7CE; color: #9C0006; font-weight: bold; }
+        .status-user { background-color: #C6EFCE; color: #006100; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="header">Отчёт: Пользователи - Paradise Library</div>
+    <div class="info">Дата формирования: ' . date('d.m.Y H:i') . '</div>
+    <div class="stats">
+        <div class="stat-box">Всего пользователей: ' . $total_users . '</div>
+        <div class="stat-box">Обычных: ' . $regular_users . '</div>
+        <div class="stat-box">Администраторов: ' . $admin_count . '</div>
+        <div class="stat-box">Активных: ' . $active_users . '</div>
+    </div>
+    <br>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 50px;">ID</th>
+                <th style="width: 150px;">Логин</th>
+                <th style="width: 120px;">Статус</th>
+                <th style="width: 100px;">Количество книг</th>
+                <th style="width: 100px;">Сессий чтения</th>
+                <th style="width: 120px;">Дата первой книги</th>
+                <th style="width: 150px;">Последняя активность</th>
+            </tr>
+        </thead>
+        <tbody>';
+    
+    foreach ($users as $u) {
+        $login = htmlspecialchars($u['login'] ?? '');
+        $status = (($u['is_admin'] ?? 0) == 1) ? 'Администратор' : 'Пользователь';
+        $statusClass = (($u['is_admin'] ?? 0) == 1) ? 'status-admin' : 'status-user';
+        $books_count = $u['books_count'] ?? 0;
+        $reading_sessions = $u['reading_sessions'] ?? 0;
+        $first_book = !empty($u['first_book_date']) ? date('d.m.Y', strtotime($u['first_book_date'])) : '-';
+        $last_activity = !empty($u['last_activity']) ? date('d.m.Y H:i', strtotime($u['last_activity'])) : 'Нет активности';
+        
+        $html .= '<tr>
+            <td class="number">' . ($u['user_id'] ?? '') . '</td>
+            <td class="text-left">' . $login . '</td>
+            <td class="text-left ' . $statusClass . '">' . $status . '</td>
+            <td class="number">' . $books_count . '</td>
+            <td class="number">' . $reading_sessions . '</td>
+            <td class="text-left">' . $first_book . '</td>
+            <td class="text-left">' . $last_activity . '</td>
+        </tr>';
+    }
+    
+    $html .= '</tbody>
+    </table>
+</body>
+</html>';
+    
+    header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+    echo $html;
+    exit();
+}
 ?>
 
 <!DOCTYPE html>

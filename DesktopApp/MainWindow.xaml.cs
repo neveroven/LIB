@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -6024,26 +6024,80 @@ namespace LIB
                 var dialog = new SaveFileDialog
                 {
                     Title = "Сохранить отчёт (Excel)",
-                    Filter = "CSV (Excel) (*.csv)|*.csv",
-                    FileName = $"{currentAdminContentType}_{DateTime.Now:yyyy-MM-dd}.csv"
+                    Filter = "Excel файлы (*.xls)|*.xls|Все файлы (*.*)|*.*",
+                    FileName = $"{currentAdminContentType}_{DateTime.Now:yyyy-MM-dd}.xls"
                 };
 
                 if (dialog.ShowDialog() != true) return;
 
-                using (var writer = new StreamWriter(dialog.FileName, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true)))
+                // Создаём HTML таблицу с форматированием для Excel
+                var html = new StringBuilder();
+                html.AppendLine("<!DOCTYPE html>");
+                html.AppendLine("<html xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:x=\"urn:schemas-microsoft-com:office:excel\" xmlns=\"http://www.w3.org/TR/REC-html40\">");
+                html.AppendLine("<head>");
+                html.AppendLine("<meta charset=\"UTF-8\">");
+                html.AppendLine("<!--[if gte mso 9]>");
+                html.AppendLine("<xml>");
+                html.AppendLine("<x:ExcelWorkbook>");
+                html.AppendLine("<x:ExcelWorksheets>");
+                html.AppendLine("<x:ExcelWorksheet>");
+                html.AppendLine($"<x:Name>{currentAdminContentType}</x:Name>");
+                html.AppendLine("</x:ExcelWorksheet>");
+                html.AppendLine("</x:ExcelWorksheets>");
+                html.AppendLine("</x:ExcelWorkbook>");
+                html.AppendLine("</xml>");
+                html.AppendLine("<![endif]-->");
+                html.AppendLine("<style>");
+                html.AppendLine("body { font-family: Arial, sans-serif; }");
+                html.AppendLine(".header { background-color: #4472C4; color: white; font-weight: bold; text-align: center; padding: 10px; }");
+                html.AppendLine(".info { padding: 5px; background-color: #F2F2F2; }");
+                html.AppendLine("table { border-collapse: collapse; width: 100%; margin-top: 10px; }");
+                html.AppendLine("th { background-color: #4472C4; color: white; font-weight: bold; padding: 10px; border: 1px solid #000; text-align: center; }");
+                html.AppendLine("td { padding: 8px; border: 1px solid #666; }");
+                html.AppendLine("tr:nth-child(even) { background-color: #F2F2F2; }");
+                html.AppendLine(".number { text-align: center; }");
+                html.AppendLine(".text-left { text-align: left; }");
+                html.AppendLine("</style>");
+                html.AppendLine("</head>");
+                html.AppendLine("<body>");
+                html.AppendLine($"<div class=\"header\">Отчёт: {currentAdminContentType} - Paradise Library</div>");
+                html.AppendLine($"<div class=\"info\">Дата формирования: {DateTime.Now:dd.MM.yyyy HH:mm}</div>");
+                html.AppendLine("<br>");
+                html.AppendLine("<table>");
+                html.AppendLine("<thead>");
+                html.AppendLine("<tr>");
+                
+                // Заголовки таблицы
+                foreach (DataColumn col in table.Columns)
                 {
-                    // header
-                    var headers = table.Columns.Cast<DataColumn>().Select(c => c.ColumnName).ToArray();
-                    writer.WriteLine(string.Join(";", headers.Select(EscapeCsv)));
-
-                    foreach (DataRow row in table.Rows)
-                    {
-                        var values = table.Columns.Cast<DataColumn>()
-                            .Select(c => EscapeCsv(row[c]?.ToString() ?? ""))
-                            .ToArray();
-                        writer.WriteLine(string.Join(";", values));
-                    }
+                    html.AppendLine($"<th style=\"min-width: 100px;\">{EscapeHtml(col.ColumnName)}</th>");
                 }
+                html.AppendLine("</tr>");
+                html.AppendLine("</thead>");
+                html.AppendLine("<tbody>");
+                
+                // Данные таблицы
+                foreach (DataRow row in table.Rows)
+                {
+                    html.AppendLine("<tr>");
+                    foreach (DataColumn col in table.Columns)
+                    {
+                        var value = row[col]?.ToString() ?? "";
+                        var isNumber = col.DataType == typeof(int) || col.DataType == typeof(long) || 
+                                      col.DataType == typeof(decimal) || col.DataType == typeof(double) ||
+                                      col.DataType == typeof(float);
+                        var cellClass = isNumber ? "number" : "text-left";
+                        html.AppendLine($"<td class=\"{cellClass}\">{EscapeHtml(value)}</td>");
+                    }
+                    html.AppendLine("</tr>");
+                }
+                
+                html.AppendLine("</tbody>");
+                html.AppendLine("</table>");
+                html.AppendLine("</body>");
+                html.AppendLine("</html>");
+
+                File.WriteAllText(dialog.FileName, html.ToString(), new UTF8Encoding(false));
 
                 MessageBox.Show("Файл сохранён.", "Экспорт", MessageBoxButton.OK, MessageBoxImage.Information);
             }
@@ -6051,6 +6105,17 @@ namespace LIB
             {
                 MessageBox.Show($"Ошибка экспорта в Excel: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private static string EscapeHtml(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return "";
+            return value
+                .Replace("&", "&amp;")
+                .Replace("<", "&lt;")
+                .Replace(">", "&gt;")
+                .Replace("\"", "&quot;")
+                .Replace("'", "&#39;");
         }
 
         private static string EscapeCsv(string value)

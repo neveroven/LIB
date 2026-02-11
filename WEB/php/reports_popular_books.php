@@ -50,39 +50,94 @@ if ($stmt) {
     $error = "Ошибка выполнения запроса: " . mysqli_error($connect);
 }
 
-// === EXPORT ===
+// === EXPORT EXCEL ===
 if (isset($_GET['export']) && $_GET['export'] === 'excel') {
-    $filename = "popular_books_{$date_from}_{$date_to}.csv";
-
-    // Тип Excel-файла, чтобы корректно открывалось в Excel
+    $filename = "popular_books_{$date_from}_{$date_to}.xls";
+    
+    // Создаём HTML таблицу с форматированием для Excel
+    $html = '<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+    <meta charset="UTF-8">
+    <!--[if gte mso 9]>
+    <xml>
+        <x:ExcelWorkbook>
+            <x:ExcelWorksheets>
+                <x:ExcelWorksheet>
+                    <x:Name>Популярные книги</x:Name>
+                </x:ExcelWorksheet>
+            </x:ExcelWorksheets>
+        </x:ExcelWorkbook>
+    </xml>
+    <![endif]-->
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .header { background-color: #4472C4; color: white; font-weight: bold; text-align: center; padding: 10px; }
+        .title { font-size: 16px; font-weight: bold; padding: 15px 5px; background-color: #D9E1F2; }
+        .info { padding: 5px; background-color: #F2F2F2; }
+        table { border-collapse: collapse; width: 100%; }
+        th { background-color: #4472C4; color: white; font-weight: bold; padding: 10px; border: 1px solid #000; text-align: center; }
+        td { padding: 8px; border: 1px solid #666; }
+        tr:nth-child(even) { background-color: #F2F2F2; }
+        .number { text-align: center; font-weight: bold; }
+        .text-left { text-align: left; }
+        .summary { background-color: #D9E1F2; font-weight: bold; padding: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">Отчёт: Популярные книги - Paradise Library</div>
+    <div class="info">Период: ' . date('d.m.Y', strtotime($date_from)) . ' - ' . date('d.m.Y', strtotime($date_to)) . '</div>
+    <div class="info">Дата формирования: ' . date('d.m.Y H:i') . '</div>
+    <br>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 40px;">№</th>
+                <th style="width: 300px;">Название книги</th>
+                <th style="width: 200px;">Автор</th>
+                <th style="width: 150px;">Категория</th>
+                <th style="width: 120px;">Количество добавлений</th>
+                <th style="width: 120px;">Уникальных пользователей</th>
+            </tr>
+        </thead>
+        <tbody>';
+    
+    $index = 1;
+    foreach ($popular_books as $row) {
+        $title = htmlspecialchars($row['title'] ?? '');
+        $author = htmlspecialchars(($row['author'] ?? '') !== '' ? $row['author'] : 'Не указан');
+        $category = htmlspecialchars(($row['category'] ?? '') !== '' ? $row['category'] : 'Без категории');
+        $add_count = $row['add_count'] ?? 0;
+        $unique_users = $row['unique_users'] ?? 0;
+        
+        $html .= '<tr>
+            <td class="number">' . $index++ . '</td>
+            <td class="text-left">' . $title . '</td>
+            <td class="text-left">' . $author . '</td>
+            <td class="text-left">' . $category . '</td>
+            <td class="number">' . $add_count . '</td>
+            <td class="number">' . $unique_users . '</td>
+        </tr>';
+    }
+    
+    $total_adds = array_sum(array_column($popular_books, 'add_count'));
+    $html .= '</tbody>
+        <tfoot>
+            <tr class="summary">
+                <td colspan="4" style="text-align: right;">Итого:</td>
+                <td class="number">' . $total_adds . '</td>
+                <td class="number">' . count($popular_books) . '</td>
+            </tr>
+        </tfoot>
+    </table>
+</body>
+</html>';
+    
     header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
     header('Content-Disposition: attachment; filename="' . $filename . '"');
     header('Pragma: no-cache');
     header('Expires: 0');
-
-    $out = fopen('php://output', 'w');
-    // UTF-8 BOM для корректного отображения кириллицы
-    fwrite($out, "\xEF\xBB\xBF");
-
-    // Заголовочная часть отчёта
-    $periodText = 'Период: ' . date('d.m.Y', strtotime($date_from)) . ' - ' . date('d.m.Y', strtotime($date_to));
-    fputcsv($out, ['Отчёт: Популярные книги - Paradise Library'], ';');
-    fputcsv($out, [$periodText], ';');
-    fputcsv($out, ['Дата формирования: ' . date('d.m.Y H:i')], ';');
-    fputcsv($out, [''], ';'); // пустая строка-разделитель
-
-    // Основная таблица
-    fputcsv($out, ['Название книги', 'Автор', 'Категория', 'Количество добавлений', 'Уникальных пользователей'], ';');
-    foreach ($popular_books as $row) {
-        fputcsv($out, [
-            $row['title'] ?? '',
-            ($row['author'] ?? '') !== '' ? $row['author'] : 'Не указан',
-            ($row['category'] ?? '') !== '' ? $row['category'] : 'Без категории',
-            $row['add_count'] ?? 0,
-            $row['unique_users'] ?? 0,
-        ], ';');
-    }
-    fclose($out);
+    echo $html;
     exit();
 }
 ?>
