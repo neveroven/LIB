@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -3547,6 +3547,37 @@ namespace LIB
         }
 
         /// <summary>
+        /// Открывает панель справки
+        /// </summary>
+        private void HelpButton_Click(object sender, RoutedEventArgs e)
+        {
+            ShowHelpPanel();
+        }
+
+        /// <summary>
+        /// Показывает руководство пользователя
+        /// </summary>
+        private void ShowHelpPanel()
+        {
+            HideAllPanels();
+            HelpPanel.Visibility = Visibility.Visible;
+
+            if (HelpAdminSection != null)
+            {
+                HelpAdminSection.Visibility = isAdmin ? Visibility.Visible : Visibility.Collapsed;
+            }
+        }
+
+        /// <summary>
+        /// Возврат из справки к библиотеке
+        /// </summary>
+        private void BackFromHelp_Click(object sender, RoutedEventArgs e)
+        {
+            HideAllPanels();
+            WelcomePanel.Visibility = Visibility.Visible;
+        }
+
+        /// <summary>
         /// Показывает окно настроек
         /// </summary>
         private void ShowSettingsWindow()
@@ -6212,6 +6243,7 @@ namespace LIB
             WelcomePanel.Visibility = Visibility.Collapsed;
             BooksGridPanel.Visibility = Visibility.Collapsed;
             SettingsPanel.Visibility = Visibility.Collapsed;
+            HelpPanel.Visibility = Visibility.Collapsed;
             CatalogPanel.Visibility = Visibility.Collapsed;
             ReadingPanel.Visibility = Visibility.Collapsed;
             BackToLibraryButton.Visibility = Visibility.Collapsed;
